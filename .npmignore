@@ -1,0 +1,5 @@
+.*
+*.log
+dev
+node_modules
+test

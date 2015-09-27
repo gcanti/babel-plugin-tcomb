@@ -1,0 +1,37 @@
+{
+  "name": "babel-plugin-tcomb",
+  "version": "0.1.0",
+  "description": "Babel plugin for runtime type checking using flow type annotations and tcomb assert library",
+  "main": "lib/index.js",
+  "scripts": {
+    "build": "babel-plugin build",
+    "playground": "webpack --watch",
+    "test": "mocha --compilers js:babel/register"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/gcanti/babel-plugin-tcomb.git"
+  },
+  "author": "Giulio Canti <giulio.canti@gmail.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/gcanti/babel-plugin-tcomb/issues"
+  },
+  "homepage": "https://github.com/gcanti/babel-plugin-tcomb",
+  "devDependencies": {
+    "babel": "^5.4.7",
+    "mocha": "^2.2.5",
+    "tcomb": "^2.5.0"
+  },
+  "tags": [
+    "babel-plugin",
+    "tcomb"
+  ],
+  "keywords": [
+    "babel-plugin",
+    "tcomb"
+  ],
+  "dependencies": {
+    "babel": "^5.8.23"
+  }
+}

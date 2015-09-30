@@ -1,78 +1,159 @@
-const NAME = '_t';
+const tcombLibraries = {
+  'tcomb': 1,
+  'tcomb-validation': 1,
+  'tcomb-react': 1,
+  'tcomb-form': 1
+};
 
-function getQualifiedTypeIdentifier(id) {
+function getAnnotationId(id) {
   if (id.type === 'QualifiedTypeIdentifier') {
-    return getQualifiedTypeIdentifier(id.qualification) + '.' + id.id.name;
+    return getAnnotationId(id.qualification) + '.' + id.id.name;
   }
   return id.name;
 }
 
-function hasTypeAnnotation(x) {
-  return x.typeAnnotation;
-}
-
 export default function ({ Plugin, types: t }) {
 
+  let tcombNamespace = 't';
+
   function getType(annotation) {
-    const typeAnnotation = annotation.typeAnnotation;
-    switch (typeAnnotation.type) {
+    switch (annotation.type) {
+
       case 'GenericTypeAnnotation' :
-        return t.identifier(getQualifiedTypeIdentifier(typeAnnotation.id));
+        // handle t.list() combinator ( `Array<Type>` syntax )
+        if (annotation.id.name === 'Array') {
+          return `${tcombNamespace}.list(${getType(annotation.typeParameters.params[0])})`;
+        }
+        return getAnnotationId(annotation.id);
+
+      case 'ArrayTypeAnnotation' :
+        // handle t.list() combinator ( `Type[]` syntax )
+        return `${tcombNamespace}.list(${getType(annotation.elementType)})`;
+
+      case 'NullableTypeAnnotation' :
+        // handle t.maybe() combinator ( `?Type` syntax )
+        return `${tcombNamespace}.maybe(${getType(annotation.typeAnnotation)})`;
+
+      case 'TupleTypeAnnotation' :
+        // handle t.tuple() combinator ( `[Type1, Type2]` syntax )
+        return `${tcombNamespace}.tuple([${annotation.types.map(getType).join(', ')}])`;
+
+      case 'UnionTypeAnnotation' :
+        // handle t.union() combinator ( `Type1 | Type2` syntax )
+        return `${tcombNamespace}.union([${annotation.types.map(getType).join(', ')}])`;
+
+      case 'ObjectTypeAnnotation' :
+        // handle t.dict() combinator ( `{[key: Type]: Type2}` syntax )
+        return `${tcombNamespace}.dict(${getType(annotation.indexers[0].key)}, ${getType(annotation.indexers[0].value)})`;
+
+      case 'IntersectionTypeAnnotation' :
+        // handle t.intersection() combinator ( `Type 1 & Type2` syntax )
+        return `${tcombNamespace}.intersection([${annotation.types.map(getType).join(', ')}])`;
+
+      default :
+        throw new SyntaxError(`Unsupported type annotation: ${annotation.type}`);
     }
-    return 'Unknown';
+  }
+
+  function getFunctionArgumentChecks(node) {
+    return node.params.filter((param) => param.typeAnnotation).map((param, i) => {
+      const id = t.identifier(param.name);
+      return t.expressionStatement(
+        t.assignmentExpression(
+          '=',
+          id,
+          t.callExpression(
+            t.identifier(getType(param.typeAnnotation.typeAnnotation)),
+            [id]
+          )
+        )
+      );
+    })
+  }
+
+  function getFunctionReturnTypeCheck(node) {
+    const params = node.params.map((param) => t.identifier(param.name));
+    const id = t.identifier('ret');
+
+    const body = node.type === 'ArrowFunctionExpression' && node.expression ?
+      t.blockStatement([t.returnStatement(node.body)]) :
+      node.body;
+
+    return [
+      t.variableDeclaration('const', [
+        t.variableDeclarator(
+          id,
+          t.callExpression(
+            t.functionDeclaration(null, params, body),
+            params
+          )
+        )
+      ]),
+      t.returnStatement(
+        t.callExpression(
+          t.identifier(getType(node.returnType.typeAnnotation)),
+          [id]
+        )
+      )
+    ];
   }
 
   return new Plugin('tcomb', {
     visitor: {
 
-      Function: {
-        exit(node, parent) {
-          const ret = t.identifier('ret');
-          const params = node.params.map((param) => t.identifier(param.name));
-          // type check the arguments
-          const body = node.params.map((param, i) => {
-            if (hasTypeAnnotation(param)) {
-              return t.expressionStatement(
-                t.assignmentExpression(
-                  '=',
-                  params[i],
-                  t.callExpression(
-                    getType(param.typeAnnotation),
-                    [params[i]]
-                  )
-                )
-              );
+      ImportDeclaration: {
+        exit(node) {
+          // scan the imports looking for a tcomb import ( `import t from 'tcomb'` syntax )
+          if (tcombLibraries.hasOwnProperty(node.source.value)) {
+            for (let i = 0, len = node.specifiers.length ; i < len ; i++) {
+              if (node.specifiers[i].type === 'ImportDefaultSpecifier') {
+                tcombNamespace = node.specifiers[i].local.name;
+              }
             }
-          });
-          if (node.returnType) {
-            // call original function and store the return value in the ret variable
-            body.push(
-              t.variableDeclaration('const', [
-                t.variableDeclarator(
-                  ret,
-                  t.callExpression(
-                    t.functionDeclaration(null, params, node.body),
-                    params
-                  )
-                )
-              ])
-            );
-            // type check the return value
-            body.push(
-              t.returnStatement(
-                t.callExpression(
-                  getType(node.returnType),
-                  [ret]
-                )
-              )
-            );
           }
-          else {
-            body.push(...node.body.body);
+        }
+      },
+
+      Function: {
+        exit(node) {
+          try {
+
+            const body = getFunctionArgumentChecks(node);
+            if (node.returnType) {
+              body.push(...getFunctionReturnTypeCheck(node));
+            }
+            else {
+              if (node.type === 'ArrowFunctionExpression' && node.expression) {
+                body.push(t.returnStatement(node.body));
+              }
+              else {
+                body.push(...node.body.body);
+              }
+            }
+
+            let ret;
+            if (node.type === 'FunctionDeclaration') {
+              ret = t.functionDeclaration(node.id, node.params, t.blockStatement(body));
+            }
+            else if (node.type === 'FunctionExpression') {
+              ret = t.functionExpression(node.id, node.params, t.blockStatement(body));
+            }
+            else if (node.type === 'ArrowFunctionExpression') {
+              ret = t.arrowFunctionExpression(node.params, t.blockStatement(body), false);
+            }
+
+            ret.returnType = node.returnType;
+
+            return ret;
           }
-          const f = t.functionDeclaration(node.id, node.params, t.blockStatement(body));
-          f.returnType = node.returnType;
-          return f;
+          catch (e) {
+            if (e instanceof SyntaxError) {
+              throw this.errorWithNode(e.message);
+            }
+            else {
+              throw e;
+            }
+          }
         }
       }
     }

@@ -1,7 +1,7 @@
 import t from 'tcomb';
 
-function sum(x: t.Number, y: t.Number): t.Number {
-  return x + y + 'a';
+function sum(x: t.Number, y: Array<?t.Number>): t.Number {
+  return x + y;
 }
 
-sum(1, 2);
+console.log(sum(1, [null]));

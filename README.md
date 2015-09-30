@@ -4,7 +4,7 @@
 npm install babel-plugin-tcomb
 ```
 
-Webpack config
+## Webpack config
 
 ```js
 module: {
@@ -13,23 +13,77 @@ module: {
       test: /\.jsx?$/,
       loaders: [
         'babel',
-        'babel?plugins=babel-plugin-tcomb&whitelist=' // <= run just the plugin
+        'babel?plugins=babel-plugin-tcomb&whitelist='
       ]
     }
   ]
 }
 ```
 
+# Supported features
+
+## Built-in and user defined types (`struct` combinator)
+
 ```js
 import t from 'tcomb';
 
-function f(x: t.String) {
+function foo(x: t.String) {
   return x;
 }
 
-f(1); // => throws [tcomb] Invalid value 1 supplied to String
+foo(1); // => throws [tcomb] Invalid value 1 supplied to String
 ```
 
-# Roadmap
+## `maybe` combinator
 
-- Handle arrow functions
+```js
+function foo(x: ?t.String) {
+  return x || 'Empty';
+}
+```
+
+## `list` combinator
+
+```js
+function foo(x: Array<t.String>) {
+  return x;
+}
+```
+
+## `tuple` combinator
+
+```js
+function foo(x: [t.String, t.Number]) {
+  return x;
+}
+```
+
+## `union` combinator
+
+```js
+function foo(x: t.String | t.Number) {
+  return x;
+}
+```
+
+## `dict` combinator
+
+```js
+function foo(x: {[key: t.String]: t.Number}) {
+  return x;
+}
+```
+
+## `intersection` combinator
+
+```js
+function foo(x: t.Number & t.String) {
+  return x;
+}
+```
+
+## Arrow functions
+
+```js
+const f = (x: t.String): t.String => x;
+```

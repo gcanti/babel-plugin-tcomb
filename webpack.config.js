@@ -20,7 +20,7 @@ module.exports = {
       // babel transpiler
       {
         test: /\.jsx?$/, // test for both js and jsx
-        loaders: ['babel', 'babel?plugins=./lib&whitelist='],
+        loaders: ['babel?plugins=./lib'],
         exclude: [/node_modules/]
       }
     ]

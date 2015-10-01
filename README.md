@@ -11,10 +11,7 @@ module: {
   loaders: [
     {
       test: /\.jsx?$/,
-      loaders: [
-        'babel',
-        'babel?plugins=babel-plugin-tcomb&whitelist='
-      ]
+      loader: 'babel?plugins=babel-plugin-tcomb'
     }
   ]
 }

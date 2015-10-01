@@ -54,16 +54,16 @@
 	
 	function sum(x, y) {
 	  x = _tcomb2['default'].Number(x);
-	  y = _tcomb2['default'].list(_tcomb2['default'].maybe(_tcomb2['default'].Number))(y);
+	  y = _tcomb2['default'].Number(y);
 	
-	  var ret = (function (x, y) {
+	  var ret = function (x, y) {
 	    return x + y;
-	  })(x, y);
+	  }(x, y);
 	
 	  return _tcomb2['default'].Number(ret);
 	}
 	
-	console.log(sum(1, [null]));
+	console.log(sum(1, 2));
 
 /***/ },
 /* 1 */

@@ -84,3 +84,13 @@ function foo(x: t.Number & t.String) {
 ```js
 const f = (x: t.String): t.String => x;
 ```
+
+## Classes
+
+```js
+class A {
+  foo(x: t.String): t.String {
+    return x;
+  }
+}
+```

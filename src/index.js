@@ -7,13 +7,14 @@ const tcombLibraries = {
 
 export default function ({ Plugin, types: t }) {
 
+  let tcomb = t.identifier('t');
+
   const list = t.identifier('list');
   const maybe = t.identifier('maybe');
   const tuple = t.identifier('tuple');
   const union = t.identifier('union');
   const intersection = t.identifier('intersection');
   const dict = t.identifier('dict');
-  let tcomb = t.identifier('t');
 
   function getExpressionFromGenericTypeAnnotation(id) {
     if (id.type === 'QualifiedTypeIdentifier') {
@@ -22,59 +23,74 @@ export default function ({ Plugin, types: t }) {
     return t.identifier(id.name);
   }
 
+  function getList(node) {
+    return t.callExpression(
+      t.memberExpression(tcomb, list),
+      [getType(node)]
+    );
+  }
+
+  function getMaybe(node) {
+    return t.callExpression(
+      t.memberExpression(tcomb, maybe),
+      [getType(node)]
+    );
+  }
+
+  function getTuple(nodes) {
+    return t.callExpression(
+      t.memberExpression(tcomb, tuple),
+      [t.arrayExpression(nodes.map(getType))]
+    );
+  }
+
+  function getUnion(nodes) {
+    return t.callExpression(
+      t.memberExpression(tcomb, union),
+      [t.arrayExpression(nodes.map(getType))]
+    );
+  }
+
+  function getDict(key, value) {
+    return t.callExpression(
+      t.memberExpression(tcomb, dict),
+      [getType(key), getType(value)]
+    );
+  }
+
+  function getIntersection(nodes) {
+    return t.callExpression(
+      t.memberExpression(tcomb, intersection),
+      [t.arrayExpression(nodes.map(getType))]
+    );
+  }
+
   function getType(annotation) {
     switch (annotation.type) {
 
       case 'GenericTypeAnnotation' :
-        // handle t.list() combinator ( `Array<Type>` syntax )
         if (annotation.id.name === 'Array') {
-          return t.callExpression(
-            t.memberExpression(tcomb, list),
-            [getType(annotation.typeParameters.params[0])]
-          );
+          return getList(annotation.typeParameters.params[0]);
         }
         return getExpressionFromGenericTypeAnnotation(annotation.id);
 
       case 'ArrayTypeAnnotation' :
-        // handle t.list() combinator ( `Type[]` syntax )
-        return t.callExpression(
-          t.memberExpression(tcomb, list),
-          [getType(annotation.elementType)]
-        );
+        return getList(annotation.elementType);
 
       case 'NullableTypeAnnotation' :
-        // handle t.maybe() combinator ( `?Type` syntax )
-        return t.callExpression(
-          t.memberExpression(tcomb, maybe),
-          [getType(annotation.typeAnnotation)]
-        );
+        return getMaybe(annotation.typeAnnotation);
+
       case 'TupleTypeAnnotation' :
-        // handle t.tuple() combinator ( `[Type1, Type2]` syntax )
-        return t.callExpression(
-          t.memberExpression(tcomb, tuple),
-          [t.arrayExpression(annotation.types.map(getType))]
-        );
+        return getTuple(annotation.types);
 
       case 'UnionTypeAnnotation' :
-        // handle t.union() combinator ( `Type1 | Type2` syntax )
-        return t.callExpression(
-          t.memberExpression(tcomb, union),
-          [t.arrayExpression(annotation.types.map(getType))]
-        );
+        return getUnion(annotation.types);
 
       case 'ObjectTypeAnnotation' :
-        // handle t.dict() combinator ( `{[key: Type]: Type2}` syntax )
-        return t.callExpression(
-          t.memberExpression(tcomb, dict),
-          [getType(annotation.indexers[0].key), getType(annotation.indexers[0].value)]
-        );
+        return getDict(annotation.indexers[0].key, annotation.indexers[0].value);
 
       case 'IntersectionTypeAnnotation' :
-        // handle t.intersection() combinator ( `Type 1 & Type2` syntax )
-        return t.callExpression(
-          t.memberExpression(tcomb, intersection),
-          [t.arrayExpression(annotation.types.map(getType))]
-        );
+        return getIntersection(annotation.types);
 
       default :
         throw new SyntaxError(`Unsupported type annotation: ${annotation.type}`);
@@ -124,19 +140,22 @@ export default function ({ Plugin, types: t }) {
     ];
   }
 
+  function getTcomb(node) {
+    if (tcombLibraries.hasOwnProperty(node.source.value)) {
+      for (let i = 0, len = node.specifiers.length ; i < len ; i++) {
+        if (node.specifiers[i].type === 'ImportDefaultSpecifier') {
+          return t.identifier(node.specifiers[i].local.name);
+        }
+      }
+    }
+  }
+
   return new Plugin('tcomb', {
     visitor: {
 
       ImportDeclaration: {
         exit(node) {
-          // scan the imports looking for a tcomb import ( `import t from 'tcomb'` syntax )
-          if (tcombLibraries.hasOwnProperty(node.source.value)) {
-            for (let i = 0, len = node.specifiers.length ; i < len ; i++) {
-              if (node.specifiers[i].type === 'ImportDefaultSpecifier') {
-                tcomb = t.identifier(node.specifiers[i].local.name);
-              }
-            }
-          }
+          tcomb = getTcomb(node);
         }
       },
 

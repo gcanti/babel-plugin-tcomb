@@ -9,13 +9,6 @@ export default function ({ Plugin, types: t }) {
 
   let tcomb = t.identifier('t');
 
-  const list = t.identifier('list');
-  const maybe = t.identifier('maybe');
-  const tuple = t.identifier('tuple');
-  const union = t.identifier('union');
-  const intersection = t.identifier('intersection');
-  const dict = t.identifier('dict');
-
   function getExpressionFromGenericTypeAnnotation(id) {
     if (id.type === 'QualifiedTypeIdentifier') {
       return t.memberExpression(getExpressionFromGenericTypeAnnotation(id.qualification), t.identifier(id.id.name));
@@ -25,42 +18,42 @@ export default function ({ Plugin, types: t }) {
 
   function getList(node) {
     return t.callExpression(
-      t.memberExpression(tcomb, list),
+      t.memberExpression(tcomb, t.identifier('list')),
       [getType(node)]
     );
   }
 
   function getMaybe(node) {
     return t.callExpression(
-      t.memberExpression(tcomb, maybe),
+      t.memberExpression(tcomb, t.identifier('maybe')),
       [getType(node)]
     );
   }
 
   function getTuple(nodes) {
     return t.callExpression(
-      t.memberExpression(tcomb, tuple),
+      t.memberExpression(tcomb, t.identifier('tuple')),
       [t.arrayExpression(nodes.map(getType))]
     );
   }
 
   function getUnion(nodes) {
     return t.callExpression(
-      t.memberExpression(tcomb, union),
+      t.memberExpression(tcomb, t.identifier('union')),
       [t.arrayExpression(nodes.map(getType))]
     );
   }
 
   function getDict(key, value) {
     return t.callExpression(
-      t.memberExpression(tcomb, dict),
+      t.memberExpression(tcomb, t.identifier('dict')),
       [getType(key), getType(value)]
     );
   }
 
   function getIntersection(nodes) {
     return t.callExpression(
-      t.memberExpression(tcomb, intersection),
+      t.memberExpression(tcomb, t.identifier('intersection')),
       [t.arrayExpression(nodes.map(getType))]
     );
   }
@@ -70,6 +63,9 @@ export default function ({ Plugin, types: t }) {
 
       case 'GenericTypeAnnotation' :
         if (annotation.id.name === 'Array') {
+          if (!annotation.typeParameters || annotation.typeParameters.params.length !== 1) {
+            throw new SyntaxError(`Unsupported Array type annotation`);
+          }
           return getList(annotation.typeParameters.params[0]);
         }
         return getExpressionFromGenericTypeAnnotation(annotation.id);
@@ -91,6 +87,9 @@ export default function ({ Plugin, types: t }) {
 
       case 'IntersectionTypeAnnotation' :
         return getIntersection(annotation.types);
+
+      case 'FunctionTypeAnnotation' :
+        return t.memberExpression(tcomb, t.identifier('Function'));
 
       default :
         throw new SyntaxError(`Unsupported type annotation: ${annotation.type}`);
@@ -117,7 +116,8 @@ export default function ({ Plugin, types: t }) {
     const params = node.params.map((param) => t.identifier(param.name));
     const id = t.identifier('ret');
 
-    const body = node.type === 'ArrowFunctionExpression' && node.expression ?
+    const isArrowExpression = ( node.type === 'ArrowFunctionExpression' && node.expression );
+    const body = isArrowExpression ?
       t.blockStatement([t.returnStatement(node.body)]) :
       node.body;
 

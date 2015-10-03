@@ -58,6 +58,13 @@ export default function ({ Plugin, types: t }) {
     );
   }
 
+  function getFunc(domain, codomain) {
+    return t.callExpression(
+      t.memberExpression(tcomb, t.identifier('func')),
+      [t.arrayExpression(domain.map(getType)), getType(codomain)]
+    );
+  }
+
   function getType(annotation) {
     switch (annotation.type) {
 
@@ -89,7 +96,7 @@ export default function ({ Plugin, types: t }) {
         return getIntersection(annotation.types);
 
       case 'FunctionTypeAnnotation' :
-        return t.memberExpression(tcomb, t.identifier('Function'));
+        return getFunc(annotation.params.map((param) => param.typeAnnotation), annotation.returnType);
 
       default :
         throw new SyntaxError(`Unsupported type annotation: ${annotation.type}`);

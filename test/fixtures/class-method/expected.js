@@ -1,5 +1,5 @@
 class A {
-  f(x: t.String): t.String {
+  foo(x: t.String): t.String {
     x = t.String(x);
 
     const ret = function (x) {

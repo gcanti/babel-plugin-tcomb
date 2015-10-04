@@ -90,7 +90,10 @@ export default function ({ Plugin, types: t }) {
         return getUnion(annotation.types);
 
       case 'ObjectTypeAnnotation' :
-        return getDict(annotation.indexers[0].key, annotation.indexers[0].value);
+        if (annotation.indexers.length === 1) {
+          return getDict(annotation.indexers[0].key, annotation.indexers[0].value);
+        }
+        throw new SyntaxError(`Unsupported Object type annotation`);
 
       case 'IntersectionTypeAnnotation' :
         return getIntersection(annotation.types);

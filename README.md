@@ -53,6 +53,18 @@ Then, in your babel configuration (usually in your .babelrc file), add "tcomb" t
 }
 ```
 
+or
+
+```json
+"env": {
+  "development": {
+    "plugins": [
+      "tcomb"
+    ]
+  }
+}
+```
+
 ## Webpack config
 
 ```js
@@ -217,7 +229,7 @@ class A {
 
 // compiles to
 class A {
-  f(x: t.String): t.String {
+  foo(x: t.String): t.String {
     x = t.String(x);
 
     const ret = function (x) {

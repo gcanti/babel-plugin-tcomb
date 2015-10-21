@@ -4,7 +4,7 @@ function foo(x: t.Number, y: t.String): t.String {
 
   const ret = function (x, y) {
     return x + y;
-  }(x, y);
+  }.call(this, x, y);
 
   return t.String(ret);
 }
@@ -14,7 +14,7 @@ function bar(x, y: t.String): t.String {
 
   const ret = function (x, y) {
     return x + y;
-  }(x, y);
+  }.call(this, x, y);
 
   return t.String(ret);
 }

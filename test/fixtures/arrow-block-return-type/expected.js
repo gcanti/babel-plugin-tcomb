@@ -3,7 +3,7 @@ const f = x => {
 
   const ret = function (x) {
     return x;
-  }(x);
+  }.call(this, x);
 
   return t.String(ret);
 };

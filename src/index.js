@@ -8,6 +8,8 @@ const tcombLibraries = {
 export default function ({ Plugin, types: t }) {
 
   let tcomb = t.identifier('t');
+  const thisIdentifier = t.identifier('this');
+  const callIdentifier = t.identifier('call');
 
   function getExpressionFromGenericTypeAnnotation(id) {
     if (id.type === 'QualifiedTypeIdentifier') {
@@ -136,8 +138,8 @@ export default function ({ Plugin, types: t }) {
         t.variableDeclarator(
           id,
           t.callExpression(
-            t.functionDeclaration(null, params, body),
-            params
+            t.memberExpression(t.functionDeclaration(null, params, body), callIdentifier),
+            [thisIdentifier].concat(params)
           )
         )
       ]),

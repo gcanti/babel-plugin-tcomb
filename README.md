@@ -12,7 +12,7 @@ function foo(x: t.Number, y: t.String): t.String {
   return x + y;
 }
 
-// the plugin will compile to
+// compiled to
 function foo(x: t.Number, y: t.String): t.String {
 
   // check the arguments: tcomb types are identity functions

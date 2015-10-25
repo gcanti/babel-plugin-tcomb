@@ -19,7 +19,6 @@
   },
   "homepage": "https://github.com/gcanti/babel-plugin-tcomb",
   "devDependencies": {
-    "babel": "^5.4.7",
     "mocha": "^2.2.5",
     "tcomb": "^2.5.0"
   },

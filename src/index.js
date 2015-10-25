@@ -109,14 +109,23 @@ export default function ({ Plugin, types: t }) {
   }
 
   function getFunctionArgumentChecks(node) {
-    return node.params.filter((param) => param.typeAnnotation).map((param, i) => {
+
+    function getTypeAnnotation(param) {
+      if (param.type === 'AssignmentPattern') {
+        throw new SyntaxError('Unsupported default values');
+      }
+      return param.typeAnnotation;
+    }
+
+    return node.params.filter(getTypeAnnotation).map((param) => {
       const id = t.identifier(param.name);
+      const typeAnnotation = getTypeAnnotation(param);
       return t.expressionStatement(
         t.assignmentExpression(
           '=',
           id,
           t.callExpression(
-            getType(param.typeAnnotation.typeAnnotation),
+            getType(typeAnnotation.typeAnnotation),
             [id]
           )
         )
@@ -197,6 +206,9 @@ export default function ({ Plugin, types: t }) {
             }
             else if (node.type === 'ArrowFunctionExpression') {
               ret = t.arrowFunctionExpression(node.params, t.blockStatement(body), false);
+            }
+            else {
+              throw new SyntaxError('Unsupported function type');
             }
 
             ret.returnType = node.returnType;

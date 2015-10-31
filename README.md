@@ -37,6 +37,10 @@ foo(1, 'a'); // => ok
 foo(1, 2); // => ...will throws "[tcomb] Invalid value 2 supplied to String"
 ```
 
+# Caveats
+
+- Destructuring and default values are not (yet) supported
+
 # Setup
 
 First, install via npm.

@@ -7,9 +7,7 @@ const tcombLibraries = {
 
 export default function ({ Plugin, types: t }) {
 
-  let tcomb = t.identifier('t');
-  const thisIdentifier = t.identifier('this');
-  const callIdentifier = t.identifier('call');
+  let tcombLocalName = 't';
 
   function getExpressionFromGenericTypeAnnotation(id) {
     if (id.type === 'QualifiedTypeIdentifier') {
@@ -20,49 +18,49 @@ export default function ({ Plugin, types: t }) {
 
   function getList(node) {
     return t.callExpression(
-      t.memberExpression(tcomb, t.identifier('list')),
+      t.memberExpression(t.identifier(tcombLocalName), t.identifier('list')),
       [getType(node)]
     );
   }
 
   function getMaybe(node) {
     return t.callExpression(
-      t.memberExpression(tcomb, t.identifier('maybe')),
+      t.memberExpression(t.identifier(tcombLocalName), t.identifier('maybe')),
       [getType(node)]
     );
   }
 
   function getTuple(nodes) {
     return t.callExpression(
-      t.memberExpression(tcomb, t.identifier('tuple')),
+      t.memberExpression(t.identifier(tcombLocalName), t.identifier('tuple')),
       [t.arrayExpression(nodes.map(getType))]
     );
   }
 
   function getUnion(nodes) {
     return t.callExpression(
-      t.memberExpression(tcomb, t.identifier('union')),
+      t.memberExpression(t.identifier(tcombLocalName), t.identifier('union')),
       [t.arrayExpression(nodes.map(getType))]
     );
   }
 
   function getDict(key, value) {
     return t.callExpression(
-      t.memberExpression(tcomb, t.identifier('dict')),
+      t.memberExpression(t.identifier(tcombLocalName), t.identifier('dict')),
       [getType(key), getType(value)]
     );
   }
 
   function getIntersection(nodes) {
     return t.callExpression(
-      t.memberExpression(tcomb, t.identifier('intersection')),
+      t.memberExpression(t.identifier(tcombLocalName), t.identifier('intersection')),
       [t.arrayExpression(nodes.map(getType))]
     );
   }
 
   function getFunc(domain, codomain) {
     return t.callExpression(
-      t.memberExpression(tcomb, t.identifier('func')),
+      t.memberExpression(t.identifier(tcombLocalName), t.identifier('func')),
       [t.arrayExpression(domain.map(getType)), getType(codomain)]
     );
   }
@@ -147,8 +145,8 @@ export default function ({ Plugin, types: t }) {
         t.variableDeclarator(
           id,
           t.callExpression(
-            t.memberExpression(t.functionDeclaration(null, params, body), callIdentifier),
-            [thisIdentifier].concat(params)
+            t.memberExpression(t.functionDeclaration(null, params, body), t.identifier('call')),
+            [t.identifier('this')].concat(params)
           )
         )
       ]),
@@ -161,12 +159,10 @@ export default function ({ Plugin, types: t }) {
     ];
   }
 
-  function getTcomb(node) {
-    if (tcombLibraries.hasOwnProperty(node.source.value)) {
-      for (let i = 0, len = node.specifiers.length ; i < len ; i++) {
-        if (node.specifiers[i].type === 'ImportDefaultSpecifier') {
-          return t.identifier(node.specifiers[i].local.name);
-        }
+  function getTcombLocalNameFromImports(node) {
+    for (let i = 0, len = node.specifiers.length ; i < len ; i++) {
+      if (node.specifiers[i].type === 'ImportDefaultSpecifier') {
+        return node.specifiers[i].local.name;
       }
     }
   }
@@ -176,7 +172,9 @@ export default function ({ Plugin, types: t }) {
 
       ImportDeclaration: {
         exit(node) {
-          tcomb = getTcomb(node);
+          if (tcombLibraries.hasOwnProperty(node.source.value)) {
+            tcombLocalName = getTcombLocalNameFromImports(node);
+          }
         }
       },
 

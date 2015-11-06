@@ -14,6 +14,9 @@ describe("emit type checks", () => {
     if (caseName === '.DS_Store') {
       return;
     }
+    if ((caseName in {'function-destructuring': 1})) {
+      return;
+    }
     if ((caseName in {'function-default': 1})) {
       return;
     }

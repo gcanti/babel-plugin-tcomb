@@ -39,7 +39,7 @@ foo(1, 2); // => ...will throws "[tcomb] Invalid value 2 supplied to String"
 
 # Caveats
 
-- Destructuring and default values are not (yet) supported
+- Destructuring and typed default values are not (yet) supported
 
 # Setup
 

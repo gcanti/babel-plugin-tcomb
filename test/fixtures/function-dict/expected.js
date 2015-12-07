@@ -1,5 +1,5 @@
 function foo(x: { [key: t.String]: t.Number }) {
-  x = t.dict(t.String, t.Number)(x);
+  t.assert(t.dict(t.String, t.Number).is(x));
 
   return x;
 }

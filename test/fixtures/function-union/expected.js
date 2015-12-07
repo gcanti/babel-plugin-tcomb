@@ -1,5 +1,5 @@
 function foo(x: t.String | t.Number) {
-  x = t.union([t.String, t.Number])(x);
+  t.assert(t.union([t.String, t.Number]).is(x));
 
   return x;
 }

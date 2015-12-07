@@ -1,5 +1,5 @@
 function foo(x: t.Number & t.String) {
-  x = t.intersection([t.Number, t.String])(x);
+  t.assert(t.intersection([t.Number, t.String]).is(x));
 
   return x;
 }

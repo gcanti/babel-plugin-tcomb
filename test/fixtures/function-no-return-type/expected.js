@@ -1,6 +1,6 @@
 function foo(x: t.Number, y: t.String) {
-  x = t.Number(x);
-  y = t.String(y);
+  t.assert(t.Number.is(x));
+  t.assert(t.String.is(y));
 
   return x + y;
 }

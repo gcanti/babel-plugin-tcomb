@@ -1,7 +1,7 @@
 import tc from 'tcomb';
 
 function foo(x: ?tc.String) {
-  x = tc.maybe(tc.String)(x);
+  tc.assert(tc.maybe(tc.String).is(x));
 
   return x || 'Empty';
 }

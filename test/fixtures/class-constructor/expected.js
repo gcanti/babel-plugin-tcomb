@@ -1,6 +1,6 @@
 class A {
   constructor(x: t.String) {
-    x = t.String(x);
+    t.assert(t.String.is(x));
 
     this.x = x;
   }

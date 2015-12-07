@@ -1,11 +1,12 @@
 class A {
   foo(x: t.String): t.String {
-    x = t.String(x);
+    t.assert(t.String.is(x));
 
     const ret = function (x) {
       return x;
     }.call(this, x);
 
-    return t.String(ret);
+    t.assert(t.String.is(ret));
+    return ret;
   }
 }

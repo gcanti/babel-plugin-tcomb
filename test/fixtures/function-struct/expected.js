@@ -3,7 +3,7 @@ const Person = t.struct({
 });
 
 function foo(person: Person) {
-  person = Person(person);
+  t.assert(Person.is(person));
 
   return person.name;
 }

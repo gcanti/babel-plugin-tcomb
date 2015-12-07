@@ -1,5 +1,5 @@
 function foo(x: a.b.c.User) {
-  x = a.b.c.User(x);
+  t.assert(a.b.c.User.is(x));
 
   return x;
 }

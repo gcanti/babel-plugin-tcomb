@@ -1,6 +1,6 @@
 class A {
   static f(x: t.String) {
-    x = t.String(x);
+    t.assert(t.String.is(x));
 
     return x;
   }

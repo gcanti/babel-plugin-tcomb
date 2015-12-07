@@ -93,7 +93,7 @@ export default function ({ Plugin, types: t }) {
         if (annotation.indexers.length === 1) {
           return getDict(annotation.indexers[0].key, annotation.indexers[0].value);
         }
-        throw new SyntaxError(`Unsupported Object type annotation`);
+        throw new SyntaxError(`[babel-plugin-tcomb] Unsupported Object type annotation`);
 
       case 'IntersectionTypeAnnotation' :
         return getIntersection(annotation.types);
@@ -102,15 +102,29 @@ export default function ({ Plugin, types: t }) {
         return getFunc(annotation.params.map((param) => param.typeAnnotation), annotation.returnType);
 
       default :
-        throw new SyntaxError(`Unsupported type annotation: ${annotation.type}`);
+        throw new SyntaxError(`[babel-plugin-tcomb] Unsupported type annotation: ${annotation.type}`);
     }
+  }
+
+  function getAssert(typeAnnotation, id) {
+    const is = t.callExpression(
+      t.memberExpression(getType(typeAnnotation), t.identifier('is')),
+      [id]
+    );
+    const assert = t.callExpression(
+      t.memberExpression(t.identifier(tcombLocalName), t.identifier('assert')),
+      [is]
+    );
+    return t.expressionStatement(assert);
   }
 
   function getFunctionArgumentChecks(node) {
 
     function getTypeAnnotation(param) {
       if (param.type === 'AssignmentPattern') {
-        throw new SyntaxError('Unsupported default values');
+        if (param.left.typeAnnotation) {
+          throw new SyntaxError('[babel-plugin-tcomb] Typed default values are not supported');
+        }
       }
       return param.typeAnnotation;
     }
@@ -118,16 +132,7 @@ export default function ({ Plugin, types: t }) {
     return node.params.filter(getTypeAnnotation).map((param) => {
       const id = t.identifier(param.name);
       const typeAnnotation = getTypeAnnotation(param);
-      return t.expressionStatement(
-        t.assignmentExpression(
-          '=',
-          id,
-          t.callExpression(
-            getType(typeAnnotation.typeAnnotation),
-            [id]
-          )
-        )
-      );
+      return getAssert(typeAnnotation.typeAnnotation, id);
     })
   }
 
@@ -150,12 +155,8 @@ export default function ({ Plugin, types: t }) {
           )
         )
       ]),
-      t.returnStatement(
-        t.callExpression(
-          getType(node.returnType.typeAnnotation),
-          [id]
-        )
-      )
+      getAssert(node.returnType.typeAnnotation, id),
+      t.returnStatement(id)
     ];
   }
 
@@ -215,7 +216,7 @@ export default function ({ Plugin, types: t }) {
           }
           catch (e) {
             if (e instanceof SyntaxError) {
-              throw this.errorWithNode(e.message);
+              throw this.errorWithNode('[babel-plugin-tcomb] ' + e.message);
             }
             else {
               throw e;

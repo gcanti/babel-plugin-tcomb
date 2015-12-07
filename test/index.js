@@ -17,9 +17,9 @@ describe("emit type checks", () => {
     if ((caseName in {'function-destructuring': 1})) {
       return;
     }
-    if ((caseName in {'function-default': 1})) {
-      return;
-    }
+    // if (!(caseName in {'function-default': 1})) {
+    //   return;
+    // }
     it(`should ${caseName.split("-").join(" ")}`, () => {
       const fixtureDir = path.join(fixturesDir, caseName);
       const actual     = babel.transformFileSync(

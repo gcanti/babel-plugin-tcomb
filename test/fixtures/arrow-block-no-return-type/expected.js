@@ -1,5 +1,5 @@
 const f = x => {
-  x = t.String(x);
+  t.assert(t.String.is(x));
 
   return x;
 };

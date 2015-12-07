@@ -1,5 +1,5 @@
 function foo(x: ?t.String) {
-  x = t.maybe(t.String)(x);
+  t.assert(t.maybe(t.String).is(x));
 
   return x;
 }

@@ -4,4 +4,5 @@ class A {
 
     this.x = x;
   }
+
 }

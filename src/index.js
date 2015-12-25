@@ -5,7 +5,7 @@ const tcombLibraries = {
   'tcomb-form': 1
 };
 
-export default function ({ Plugin, types: t }) {
+export default function ({ types: t }) {
 
   let tcombLocalName = 't';
 
@@ -168,11 +168,11 @@ export default function ({ Plugin, types: t }) {
     }
   }
 
-  return new Plugin('tcomb', {
+  return {
     visitor: {
 
       ImportDeclaration: {
-        exit(node) {
+        exit({ node }) {
           if (tcombLibraries.hasOwnProperty(node.source.value)) {
             tcombLocalName = getTcombLocalNameFromImports(node);
           }
@@ -180,7 +180,8 @@ export default function ({ Plugin, types: t }) {
       },
 
       Function: {
-        exit(node) {
+        exit(path) {
+          const node = path.node;
           try {
 
             const body = getFunctionArgumentChecks(node);
@@ -206,17 +207,21 @@ export default function ({ Plugin, types: t }) {
             else if (node.type === 'ArrowFunctionExpression') {
               ret = t.arrowFunctionExpression(node.params, t.blockStatement(body), false);
             }
+            else if (node.type === 'ClassMethod') {
+              ret = t.classMethod('method', node.key, node.params, t.blockStatement(body), node.computed, node.static);
+            }
             else {
-              throw new SyntaxError('Unsupported function type');
+              throw new SyntaxError('Unsupported function type: ' + node.type);
             }
 
             ret.returnType = node.returnType;
-
-            return ret;
+            path.replaceWith(ret);
+            // TODO: Causes the visitor to stop after the first function found in this path
+            path.stop();
           }
           catch (e) {
             if (e instanceof SyntaxError) {
-              throw this.errorWithNode('[babel-plugin-tcomb] ' + e.message);
+              throw new Error('[babel-plugin-tcomb] ' + e.message);
             }
             else {
               throw e;
@@ -225,5 +230,5 @@ export default function ({ Plugin, types: t }) {
         }
       }
     }
-  });
+  };
 }

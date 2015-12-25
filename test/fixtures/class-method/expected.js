@@ -9,4 +9,5 @@ class A {
     t.assert(t.String.is(ret));
     return ret;
   }
+
 }

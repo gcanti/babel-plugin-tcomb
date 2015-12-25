@@ -8,13 +8,16 @@ function trim(str) {
   return str.replace(/^\s+|\s+$/, "");
 }
 
+const skipTests = {
+  '.DS_Store': 1,
+  'function-destructuring': 1,
+  'function-default': 1
+}
+
 describe("emit type checks", () => {
   const fixturesDir = path.join(__dirname, "fixtures");
   fs.readdirSync(fixturesDir).map((caseName) => {
-    if (caseName === '.DS_Store') {
-      return;
-    }
-    if ((caseName in {'function-destructuring': 1})) {
+    if ((caseName in skipTests)) {
       return;
     }
     // if (!(caseName in {'function-default': 1})) {

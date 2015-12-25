@@ -93,7 +93,7 @@ export default function ({ Plugin, types: t }) {
         if (annotation.indexers.length === 1) {
           return getDict(annotation.indexers[0].key, annotation.indexers[0].value);
         }
-        throw new SyntaxError(`[babel-plugin-tcomb] Unsupported Object type annotation`);
+        throw new SyntaxError(`Unsupported Object type annotation`);
 
       case 'IntersectionTypeAnnotation' :
         return getIntersection(annotation.types);
@@ -102,7 +102,7 @@ export default function ({ Plugin, types: t }) {
         return getFunc(annotation.params.map((param) => param.typeAnnotation), annotation.returnType);
 
       default :
-        throw new SyntaxError(`[babel-plugin-tcomb] Unsupported type annotation: ${annotation.type}`);
+        throw new SyntaxError(`Unsupported type annotation: ${annotation.type}`);
     }
   }
 
@@ -123,7 +123,7 @@ export default function ({ Plugin, types: t }) {
     function getTypeAnnotation(param) {
       if (param.type === 'AssignmentPattern') {
         if (param.left.typeAnnotation) {
-          throw new SyntaxError('[babel-plugin-tcomb] Typed default values are not supported');
+          throw new SyntaxError('Typed default values are not supported');
         }
       }
       return param.typeAnnotation;
@@ -150,7 +150,7 @@ export default function ({ Plugin, types: t }) {
         t.variableDeclarator(
           id,
           t.callExpression(
-            t.memberExpression(t.functionDeclaration(null, params, body), t.identifier('call')),
+            t.memberExpression(t.functionExpression(null, params, body), t.identifier('call')),
             [t.identifier('this')].concat(params)
           )
         )

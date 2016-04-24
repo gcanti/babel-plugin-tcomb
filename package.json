@@ -1,6 +1,6 @@
 {
   "name": "babel-plugin-tcomb",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "Babel plugin for runtime type checking using tcomb",
   "main": "lib/index.js",
   "scripts": {
@@ -19,6 +19,8 @@
   },
   "homepage": "https://github.com/gcanti/babel-plugin-tcomb",
   "devDependencies": {
+    "babel-eslint": "4.1.8",
+    "eslint": "1.10.3",
     "mocha": "^2.2.5",
     "tcomb": "^2.5.0"
   },

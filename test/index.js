@@ -1,8 +1,8 @@
 const path   = require("path");
 const fs     = require("fs");
 const assert = require("assert");
-const babel  = require("babel");
-const plugin = require("../src/index");
+const babel  = require("babel-core");
+const plugin = require("../src/index").default;
 
 function trim(str) {
   return str.replace(/^\s+|\s+$/, "");
@@ -27,8 +27,8 @@ describe("emit type checks", () => {
       const fixtureDir = path.join(fixturesDir, caseName);
       const actual     = babel.transformFileSync(
         path.join(fixtureDir, "actual.js"), {
-          whitelist: [],
-          plugins: [plugin]
+          babelrc: false,
+          plugins: [plugin, "syntax-flow"]
         }
       ).code;
       const expected = fs.readFileSync(path.join(fixtureDir, "expected.js")).toString();

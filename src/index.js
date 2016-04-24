@@ -5,7 +5,7 @@ const tcombLibraries = {
   'tcomb-form': 1
 };
 
-export default function ({ Plugin, types: t }) {
+export default function ({ types: t }) {
 
   let tcombLocalName = 't';
 
@@ -118,7 +118,7 @@ export default function ({ Plugin, types: t }) {
     return t.expressionStatement(assert);
   }
 
-  function getFunctionArgumentChecks(node) {
+  function getFunctionArgumentCheckExpressions(node) {
 
     function getTypeAnnotation(param) {
       if (param.type === 'AssignmentPattern') {
@@ -136,21 +136,16 @@ export default function ({ Plugin, types: t }) {
     })
   }
 
-  function getFunctionReturnTypeCheck(node) {
+  function getWrappedFunctionReturnWithTypeCheck(node) {
     const params = node.params.map((param) => t.identifier(param.name));
     const id = t.identifier('ret');
 
-    const isArrowExpression = ( node.type === 'ArrowFunctionExpression' && node.expression );
-    const body = isArrowExpression ?
-      t.blockStatement([t.returnStatement(node.body)]) :
-      node.body;
-
     return [
-      t.variableDeclaration('const', [
+      t.variableDeclaration('var', [
         t.variableDeclarator(
           id,
           t.callExpression(
-            t.memberExpression(t.functionExpression(null, params, body), t.identifier('call')),
+            t.memberExpression(t.functionExpression(null, params, node.body), t.identifier('call')),
             [t.identifier('this')].concat(params)
           )
         )
@@ -168,62 +163,60 @@ export default function ({ Plugin, types: t }) {
     }
   }
 
-  return new Plugin('tcomb', {
+  return {
     visitor: {
 
-      ImportDeclaration: {
-        exit(node) {
-          if (tcombLibraries.hasOwnProperty(node.source.value)) {
-            tcombLocalName = getTcombLocalNameFromImports(node);
-          }
+      File: {
+        enter() {
+          tcombLocalName = 't'; // reset;
         }
       },
 
-      Function: {
-        exit(node) {
-          try {
+      ImportDeclaration({ node }) {
+        if (tcombLibraries.hasOwnProperty(node.source.value)) {
+          tcombLocalName = getTcombLocalNameFromImports(node);
+        }
+      },
 
-            const body = getFunctionArgumentChecks(node);
-            if (node.returnType) {
-              body.push(...getFunctionReturnTypeCheck(node));
-            }
-            else {
-              if (node.type === 'ArrowFunctionExpression' && node.expression) {
-                body.push(t.returnStatement(node.body));
-              }
-              else {
-                body.push(...node.body.body);
-              }
-            }
+      Function(path) {
+        const { node } = path;
 
-            let ret;
-            if (node.type === 'FunctionDeclaration') {
-              ret = t.functionDeclaration(node.id, node.params, t.blockStatement(body));
-            }
-            else if (node.type === 'FunctionExpression') {
-              ret = t.functionExpression(node.id, node.params, t.blockStatement(body));
-            }
-            else if (node.type === 'ArrowFunctionExpression') {
-              ret = t.arrowFunctionExpression(node.params, t.blockStatement(body), false);
-            }
-            else {
-              throw new SyntaxError('Unsupported function type');
-            }
-
-            ret.returnType = node.returnType;
-
-            return ret;
+        try {
+          // Firstly let's replace arrow function expressions into
+          // block statement return structures.
+          if (node.type === "ArrowFunctionExpression" && node.expression) {
+            node.expression = false;
+            node.body = t.blockStatement([t.returnStatement(node.body)]);
           }
-          catch (e) {
-            if (e instanceof SyntaxError) {
-              throw this.errorWithNode('[babel-plugin-tcomb] ' + e.message);
-            }
-            else {
-              throw e;
-            }
+
+          // If we have a return type then we will wrap our entire function
+          // body and insert a type check on the returned value.
+          if (node.returnType) {
+            const funcBody = path.get('body');
+
+            funcBody.replaceWithMultiple(
+              getWrappedFunctionReturnWithTypeCheck(node, tcombLocalName)
+            );
+          }
+
+          // Prepend any argument checks to the top of our function body.
+          const argumentChecks = getFunctionArgumentCheckExpressions(
+            node,
+            tcombLocalName
+          );
+          if (argumentChecks.length > 0) {
+            node.body.body.unshift(...argumentChecks);
+          }
+        }
+        catch (e) {
+          if (e instanceof SyntaxError) {
+            throw new Error('[babel-plugin-tcomb] ' + e.message);
+          }
+          else {
+            throw e;
           }
         }
       }
     }
-  });
+  };
 }

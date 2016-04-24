@@ -9,9 +9,7 @@ function trim(str) {
 }
 
 const skipTests = {
-  '.DS_Store': 1,
-  'function-destructuring': 1,
-  'function-default': 1
+  '.DS_Store': 1
 }
 
 describe("emit type checks", () => {
@@ -20,9 +18,6 @@ describe("emit type checks", () => {
     if ((caseName in skipTests)) {
       return;
     }
-    // if (!(caseName in {'function-default': 1})) {
-    //   return;
-    // }
     it(`should ${caseName.split("-").join(" ")}`, () => {
       const fixtureDir = path.join(fixturesDir, caseName);
       const actual     = babel.transformFileSync(

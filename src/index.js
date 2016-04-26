@@ -7,7 +7,7 @@ const tcombLibraries = {
 
 export default function ({ types: t }) {
 
-  let tcombLocalName = 't';
+  let tcombLocalName = null;
 
   function getExpressionFromGenericTypeAnnotation(id) {
     if (id.type === 'QualifiedTypeIdentifier') {
@@ -129,7 +129,13 @@ export default function ({ types: t }) {
       }
     }
 
-    return node.params.filter(getTypeAnnotation).map((param) => {
+    const typeAnnotationParams = node.params.filter(getTypeAnnotation);
+
+    if (typeAnnotationParams.length > 0) {
+      guardTcombImport();
+    }
+
+    return typeAnnotationParams.map((param) => {
       const { name, typeAnnotation } = getTypeAnnotation(param)
       const id = t.identifier(name);
       return getAssert(typeAnnotation.typeAnnotation, id);
@@ -180,10 +186,44 @@ export default function ({ types: t }) {
   }
 
   function getTcombLocalNameFromImports(node) {
+    let result;
+
     for (let i = 0, len = node.specifiers.length ; i < len ; i++) {
-      if (node.specifiers[i].type === 'ImportDefaultSpecifier') {
-        return node.specifiers[i].local.name;
+      const specifier = node.specifiers[i];
+      if (specifier.type === 'ImportSpecifier' && specifier.imported.name === 't') {
+        result = specifier.local.name;
+      } else if (specifier.type === 'ImportDefaultSpecifier') {
+        result = specifier.local.name;
       }
+    }
+
+    return result;
+  }
+
+  function getTcombLocalNameFromRequires(node) {
+    let result;
+
+    const importName = node.init.arguments[0].value;
+
+    if (importName === 'tcomb' && node.id.type === 'Identifier') {
+      result = node.id.name;
+    } else if (node.id.type === 'Identifier') {
+      result = node.id.name + '.t';
+    } else if (node.id.type == 'ObjectPattern') {
+      node.id.properties.forEach(property => {
+        if (property.key.name === 't') {
+          result = property.key.name;
+        }
+      });
+    }
+
+    return result;
+  }
+
+  function guardTcombImport() {
+    if (!tcombLocalName) {
+      throw new Error(
+        'When type annotating a function you must have an import of tcomb with the file scope of the function.');
     }
   }
 
@@ -196,7 +236,19 @@ export default function ({ types: t }) {
         }
       },
 
+      VariableDeclarator({ node }) {
+        if (node.init.type === 'CallExpression' &&
+            node.init.callee.name === 'require' &&
+            node.init.arguments.length > 0 &&
+            node.init.arguments[0].type === 'StringLiteral' &&
+            tcombLibraries.hasOwnProperty(node.init.arguments[0].value)) {
+          tcombLocalName = getTcombLocalNameFromRequires(node);
+        }
+      },
+
       Function(path) {
+
+
         const { node } = path;
 
         try {
@@ -210,6 +262,8 @@ export default function ({ types: t }) {
           // If we have a return type then we will wrap our entire function
           // body and insert a type check on the returned value.
           if (node.returnType) {
+            guardTcombImport();
+
             const funcBody = path.get('body');
 
             funcBody.replaceWithMultiple(

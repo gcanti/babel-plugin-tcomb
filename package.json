@@ -20,7 +20,6 @@
   "homepage": "https://github.com/gcanti/babel-plugin-tcomb",
   "devDependencies": {
     "babel-cli": "6.7.7",
-    "babel": "6.5.2",
     "babel-core": "6.7.7",
     "babel-eslint": "6.0.3",
     "babel-plugin-syntax-flow": "6.5.0",
@@ -36,9 +35,5 @@
   "keywords": [
     "babel-plugin",
     "tcomb"
-  ],
-  "peerDependencies": {
-    "babel": "^6.5.2",
-    "babel-plugin-syntax-flow": "^6.5.0"
-  }
+  ]
 }

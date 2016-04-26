@@ -166,12 +166,6 @@ export default function ({ types: t }) {
   return {
     visitor: {
 
-      File: {
-        enter() {
-          tcombLocalName = 't'; // reset;
-        }
-      },
-
       ImportDeclaration({ node }) {
         if (tcombLibraries.hasOwnProperty(node.source.value)) {
           tcombLocalName = getTcombLocalNameFromImports(node);
@@ -195,15 +189,12 @@ export default function ({ types: t }) {
             const funcBody = path.get('body');
 
             funcBody.replaceWithMultiple(
-              getWrappedFunctionReturnWithTypeCheck(node, tcombLocalName)
+              getWrappedFunctionReturnWithTypeCheck(node)
             );
           }
 
           // Prepend any argument checks to the top of our function body.
-          const argumentChecks = getFunctionArgumentCheckExpressions(
-            node,
-            tcombLocalName
-          );
+          const argumentChecks = getFunctionArgumentCheckExpressions(node);
           if (argumentChecks.length > 0) {
             node.body.body.unshift(...argumentChecks);
           }

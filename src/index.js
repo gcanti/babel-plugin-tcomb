@@ -136,8 +136,30 @@ export default function ({ types: t }) {
     });
   }
 
+  function getObjectPatternParamIdentifiers(properties) {
+    const result = [];
+
+    properties.forEach(property => {
+      if (property.value.type === 'ObjectPattern') {
+        result.splice(result.length, 0, ...getObjectPatternParamIdentifiers(property.value.properties))
+      } else {
+        result.push(t.identifier(property.value.name));
+      }
+    });
+
+    return result;
+  }
+
   function getWrappedFunctionReturnWithTypeCheck(node) {
-    const params = node.params.map((param) => t.identifier(param.name));
+    const params = [];
+    node.params.forEach((param) => {
+      if (param.type === 'ObjectPattern') {
+        params.splice(params.length, 0, ...getObjectPatternParamIdentifiers(param.properties));
+      } else {
+        params.push(t.identifier(param.name));
+      }
+    });
+
     const id = t.identifier('ret');
 
     return [

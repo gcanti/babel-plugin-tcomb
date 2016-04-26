@@ -155,6 +155,8 @@ export default function ({ Plugin, types: t }) {
     node.params.forEach((param) => {
       if (param.type === 'ObjectPattern') {
         params.splice(params.length, 0, ...getObjectPatternParamIdentifiers(param.properties));
+      } else if (param.type === 'AssignmentPattern') {
+        params.push(t.identifier(param.left.name));
       } else {
         params.push(t.identifier(param.name));
       }

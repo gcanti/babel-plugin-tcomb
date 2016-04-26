@@ -121,19 +121,19 @@ export default function ({ types: t }) {
   function getFunctionArgumentCheckExpressions(node) {
 
     function getTypeAnnotation(param) {
-      if (param.type === 'AssignmentPattern') {
-        if (param.left.typeAnnotation) {
-          throw new SyntaxError('Typed default values are not supported');
+      if (param.typeAnnotation) {
+        if (param.type === 'AssignmentPattern') {
+          return {name: param.left.name, typeAnnotation: param.typeAnnotation}
         }
+        return {name: param.name, typeAnnotation: param.typeAnnotation};
       }
-      return param.typeAnnotation;
     }
 
     return node.params.filter(getTypeAnnotation).map((param) => {
-      const id = t.identifier(param.name);
-      const typeAnnotation = getTypeAnnotation(param);
+      const { name, typeAnnotation } = getTypeAnnotation(param)
+      const id = t.identifier(name);
       return getAssert(typeAnnotation.typeAnnotation, id);
-    })
+    });
   }
 
   function getWrappedFunctionReturnWithTypeCheck(node) {
@@ -166,12 +166,6 @@ export default function ({ types: t }) {
   return {
     visitor: {
 
-      File: {
-        enter() {
-          tcombLocalName = 't'; // reset;
-        }
-      },
-
       ImportDeclaration({ node }) {
         if (tcombLibraries.hasOwnProperty(node.source.value)) {
           tcombLocalName = getTcombLocalNameFromImports(node);
@@ -195,15 +189,12 @@ export default function ({ types: t }) {
             const funcBody = path.get('body');
 
             funcBody.replaceWithMultiple(
-              getWrappedFunctionReturnWithTypeCheck(node, tcombLocalName)
+              getWrappedFunctionReturnWithTypeCheck(node)
             );
           }
 
           // Prepend any argument checks to the top of our function body.
-          const argumentChecks = getFunctionArgumentCheckExpressions(
-            node,
-            tcombLocalName
-          );
+          const argumentChecks = getFunctionArgumentCheckExpressions(node);
           if (argumentChecks.length > 0) {
             node.body.body.unshift(...argumentChecks);
           }

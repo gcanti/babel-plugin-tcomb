@@ -2,6 +2,11 @@
 
 babel-plugin-tcomb is a babel plugin for runtime type checking using tcomb. You can annotate a function (arguments and return type) with tcomb types.
 
+# Babel versions
+
+- ^5.0.0 -> babel-plugin-tcomb ^0.1.0
+- ^6.0.0 -> babel-plugin-tcomb ^0.2.0
+
 # How it works
 
 ```js
@@ -37,10 +42,6 @@ foo(1, 'a'); // => ok
 foo(1, 2); // => ...will throws "[tcomb] Invalid value 2 supplied to String"
 ```
 
-# Caveats
-
-- Destructuring and typed default values are not (yet) supported
-
 # Setup
 
 First, install via npm.
@@ -53,7 +54,7 @@ Then, in your babel configuration (usually in your .babelrc file), add "tcomb" t
 
 ```json
 {
-  "plugins": ["tcomb"]
+  "plugins" : ["syntax-flow", "tcomb", "transform-flow-strip-types"]
 }
 ```
 
@@ -84,6 +85,22 @@ module: {
 
 # Features
 
+**default values**
+
+```js
+function foo(x: t.Number, y = 1: t.Number) {
+  return x + y;
+}
+
+// compiles to
+function foo(x: t.Number, y = 1: t.Number) {
+  t.assert(t.Number.is(x));
+  t.assert(t.Number.is(y));
+
+  return x + y;
+}
+```
+
 **`struct` combinator**
 
 ```js
@@ -97,7 +114,7 @@ function foo(person: Person) {
 
 // compiles to
 function foo(person: Person) {
-  person = Person(person);
+  t.assert(Person.is(person));
 
   return person.name;
 }
@@ -114,7 +131,7 @@ function foo(x: Integer) {
 
 // compiles to
 function foo(x: Integer) {
-  x = Integer(x);
+  t.assert(Integer.is(x));
 
   return x;
 }
@@ -129,7 +146,7 @@ function foo(x: ?t.String) {
 
 // compiles to
 function foo(x: ?t.String) {
-  x = t.maybe(t.String)(x);
+  t.assert(t.maybe(t.String).is(x));
 
   return x;
 }
@@ -144,7 +161,7 @@ function foo(x: Array<t.String>) {
 
 // compiles to
 function foo(x: Array<t.String>) {
-  x = t.list(t.String)(x);
+  t.assert(t.list(t.String).is(x));
 
   return x;
 }
@@ -159,7 +176,7 @@ function foo(x: [t.String, t.Number]) {
 
 // compiles to
 function foo(x: [t.String, t.Number]) {
-  x = t.tuple([t.String, t.Number])(x);
+  t.assert(t.tuple([t.String, t.Number]).is(x));
 
   return x;
 }
@@ -174,7 +191,7 @@ function foo(x: t.String | t.Number) {
 
 // compiles to
 function foo(x: t.String | t.Number) {
-  x = t.union([t.String, t.Number])(x);
+  t.assert(t.union([t.String, t.Number]).is(x));
 
   return x;
 }
@@ -189,7 +206,7 @@ function foo(x: {[key: t.String]: t.Number}) {
 
 // compiles to
 function foo(x: { [key: t.String]: t.Number }) {
-  x = t.dict(t.String, t.Number)(x);
+  t.assert(t.dict(t.String, t.Number).is(x));
 
   return x;
 }
@@ -204,7 +221,7 @@ function foo(x: t.Number & t.String) {
 
 // compiles to
 function foo(x: t.Number & t.String) {
-  x = t.intersection([t.Number, t.String])(x);
+  t.assert(t.intersection([t.Number, t.String]).is(x));
 
   return x;
 }
@@ -217,7 +234,8 @@ const f = (x: t.String) => x;
 
 // compiles to
 const f = x => {
-  x = t.String(x);
+  t.assert(t.String.is(x));
+
   return x;
 };
 ```
@@ -234,13 +252,14 @@ class A {
 // compiles to
 class A {
   foo(x: t.String): t.String {
-    x = t.String(x);
+    t.assert(t.String.is(x));
 
     const ret = function (x) {
       return x;
     }(x);
 
-    return t.String(ret);
+    t.assert(t.String.is(ret));
+    return ret;
   }
 }
 ```

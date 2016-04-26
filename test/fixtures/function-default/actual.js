@@ -1,4 +1,4 @@
-function foo(x: t.Number = 0, y: t.String) {
+function foo(x: t.Number, y = 1: t.Number) {
   return x + y;
 }
 

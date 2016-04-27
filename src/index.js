@@ -112,18 +112,15 @@ export default function ({ Plugin, types: t }) {
       t.memberExpression(type, t.identifier('is')),
       [id]
     );
-    const message = t.functionExpression(null, [], t.blockStatement([
-      t.expressionStatement(t.callExpression(type, [id])),
-      t.returnStatement(t.binaryExpression(
+    const message = t.binaryExpression(
+      '+',
+      t.binaryExpression(
         '+',
-        t.binaryExpression(
-          '+',
-          t.literal('Invalid argument ' + id.name + ' (expected a '),
-          t.callExpression(t.memberExpression(t.identifier(tcombLocalName), t.identifier('getTypeName')), [type])
-        ),
-        t.literal(')')
-      ))
-    ]));
+        t.literal('Invalid argument ' + id.name + ' (expected a '),
+        t.callExpression(t.memberExpression(t.identifier(tcombLocalName), t.identifier('getTypeName')), [type])
+      ),
+      t.literal(')')
+    );
     const assert = t.callExpression(
       t.memberExpression(t.identifier(tcombLocalName), t.identifier('assert')),
       [guard, message]

@@ -223,7 +223,7 @@ export default function ({ types: t }) {
   function guardTcombImport() {
     if (!tcombLocalName) {
       throw new Error(
-        'When type annotating a function you must have an import of tcomb with the file scope of the function.');
+        'When setting type annotations on a function, an import of tcomb must be available within the scope of the function.');
     }
   }
 

@@ -107,13 +107,23 @@ export default function ({ types: t }) {
   }
 
   function getAssert(typeAnnotation, id) {
-    const is = t.callExpression(
-      t.memberExpression(getType(typeAnnotation), t.identifier('is')),
+    const type = getType(typeAnnotation);
+    const guard = t.callExpression(
+      t.memberExpression(type, t.identifier('is')),
       [id]
+    );
+    const message = t.binaryExpression(
+      '+',
+      t.binaryExpression(
+        '+',
+        t.stringLiteral('Invalid argument ' + id.name + ' (expected a '),
+        t.callExpression(t.memberExpression(t.identifier(tcombLocalName), t.identifier('getTypeName')), [type])
+      ),
+      t.stringLiteral(')')
     );
     const assert = t.callExpression(
       t.memberExpression(t.identifier(tcombLocalName), t.identifier('assert')),
-      [is]
+      [guard, message]
     );
     return t.expressionStatement(assert);
   }

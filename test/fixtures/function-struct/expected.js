@@ -5,7 +5,7 @@ const Person = t.struct({
 });
 
 function foo(person: Person) {
-  t.assert(Person.is(person));
+  t.assert(Person.is(person), 'Invalid argument person (expected a ' + t.getTypeName(Person) + ')');
 
   return person.name;
 }

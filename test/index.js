@@ -12,6 +12,47 @@ const skipTests = {
   '.DS_Store': 1
 }
 
+describe("ensure guards", () => {
+  describe("tcomb import guarding", () => {
+    it(`should error when type checking`, () => {
+      const source = `
+        function foo(x: t.String) {
+          return x;
+        }`;
+
+      assert.throws(() => {
+        babel.transform(
+          source, {
+            babelrc: false,
+            plugins: [plugin]
+          }
+        )
+      }, err => {
+        if ((err instanceof Error) &&
+          /an import of tcomb must be available/.test(err) ) {
+          return true;
+        }
+      });
+    });
+
+    it(`should NOT error when NOT type checking`, () => {
+      const source = `
+        function foo(x) {
+          return x;
+        }`;
+
+      assert.doesNotThrow(() => {
+        babel.transform(
+          source, {
+            babelrc: false,
+            plugins: [plugin]
+          }
+        )
+      });
+    });
+  });
+});
+
 describe("emit type checks", () => {
   const fixturesDir = path.join(__dirname, "fixtures");
   fs.readdirSync(fixturesDir).map((caseName) => {

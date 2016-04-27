@@ -1,3 +1,5 @@
+import t from 'tcomb';
+
 function foo(x: t.Number, y: t.String): t.String {
   t.assert(t.Number.is(x));
   t.assert(t.String.is(y));

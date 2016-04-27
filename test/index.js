@@ -29,7 +29,7 @@ describe("ensure guards", () => {
         )
       }, err => {
         if ((err instanceof Error) &&
-          /you must have an import of tcomb/.test(err) ) {
+          /an import of tcomb must be available/.test(err) ) {
           return true;
         }
       });

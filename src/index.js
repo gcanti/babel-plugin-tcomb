@@ -229,6 +229,13 @@ export default function ({ types: t }) {
 
   return {
     visitor: {
+      File: {
+        enter() {
+          // Ensure we reset the import between each file so that our guard
+          // of the import works correctly.
+          tcombLocalName = null;
+        }
+      },
 
       ImportDeclaration({ node }) {
         if (tcombLibraries.hasOwnProperty(node.source.value)) {
@@ -237,8 +244,10 @@ export default function ({ types: t }) {
       },
 
       VariableDeclarator({ node }) {
-        if (node.init.type === 'CallExpression' &&
+        if (node.init && node.init.type &&
+            node.init.type === 'CallExpression' &&
             node.init.callee.name === 'require' &&
+            node.init.arguments &&
             node.init.arguments.length > 0 &&
             node.init.arguments[0].type === 'StringLiteral' &&
             tcombLibraries.hasOwnProperty(node.init.arguments[0].value)) {
@@ -247,8 +256,6 @@ export default function ({ types: t }) {
       },
 
       Function(path) {
-
-
         const { node } = path;
 
         try {

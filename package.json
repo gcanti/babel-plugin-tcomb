@@ -6,7 +6,7 @@
   "scripts": {
     "lint": "eslint src/index.js",
     "build": "babel --plugins syntax-flow -d ./lib ./src",
-    "test": "BABEL_DISABLE_CACHE=1 mocha --compilers js:babel-core/register test/guards.js test/index.js"
+    "test": "mocha --compilers js:babel-core/register"
   },
   "repository": {
     "type": "git",

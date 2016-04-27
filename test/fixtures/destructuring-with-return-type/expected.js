@@ -1,10 +1,13 @@
 import t from 'tcomb';
 
 function foo({ x: { y: foo, z: { bar } }, a: { bob } }): t.String {
-  const ret = (function (foo, bar, bob) {
+  var ret = (function (foo, bar, bob) {
     return bar;
   }).call(this, foo, bar, bob);
 
-  t.assert(t.String.is(ret));
+  t.assert(t.String.is(ret), function () {
+    t.String(ret);
+    return 'Invalid argument ret (expected a ' + t.getTypeName(t.String) + ')';
+  });
   return ret;
 }

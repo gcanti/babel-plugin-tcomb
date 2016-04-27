@@ -107,13 +107,26 @@ export default function ({ Plugin, types: t }) {
   }
 
   function getAssert(typeAnnotation, id) {
-    const is = t.callExpression(
-      t.memberExpression(getType(typeAnnotation), t.identifier('is')),
+    const type = getType(typeAnnotation);
+    const guard = t.callExpression(
+      t.memberExpression(type, t.identifier('is')),
       [id]
     );
+    const message = t.functionExpression(null, [], t.blockStatement([
+      t.expressionStatement(t.callExpression(type, [id])),
+      t.returnStatement(t.binaryExpression(
+        '+',
+        t.binaryExpression(
+          '+',
+          t.literal('Invalid argument ' + id.name + ' (expected a '),
+          t.callExpression(t.memberExpression(t.identifier(tcombLocalName), t.identifier('getTypeName')), [type])
+        ),
+        t.literal(')')
+      ))
+    ]));
     const assert = t.callExpression(
       t.memberExpression(t.identifier(tcombLocalName), t.identifier('assert')),
-      [is]
+      [guard, message]
     );
     return t.expressionStatement(assert);
   }
@@ -175,7 +188,7 @@ export default function ({ Plugin, types: t }) {
       node.body;
 
     return [
-      t.variableDeclaration('const', [
+      t.variableDeclaration('var', [
         t.variableDeclarator(
           id,
           t.callExpression(

@@ -1,4 +1,5 @@
 import t from 'tcomb';
+
 function foo(x: t.Number, y: t.String): t.String {
   return x + y;
 }
@@ -6,4 +7,3 @@ function foo(x: t.Number, y: t.String): t.String {
 function bar(x, y: t.String): t.String {
   return x + y;
 }
-

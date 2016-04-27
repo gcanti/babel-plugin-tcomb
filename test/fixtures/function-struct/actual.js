@@ -1,3 +1,5 @@
+import t from 'tcomb';
+
 const Person = t.struct({
   name: t.String
 });

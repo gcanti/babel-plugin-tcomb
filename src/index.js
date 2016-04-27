@@ -131,10 +131,13 @@ export default function ({ types: t }) {
   function getFunctionArgumentCheckExpressions(node) {
 
     function getTypeAnnotation(param) {
-      if (param.typeAnnotation) {
-        if (param.type === 'AssignmentPattern') {
+      if (param.type === 'AssignmentPattern') {
+        if (param.typeAnnotation) {
           return {name: param.left.name, typeAnnotation: param.typeAnnotation}
+        } else if (param.left.typeAnnotation) {
+          return {name: param.left.name, typeAnnotation: param.left.typeAnnotation}
         }
+      } else if (param.typeAnnotation) {
         return {name: param.name, typeAnnotation: param.typeAnnotation};
       }
     }

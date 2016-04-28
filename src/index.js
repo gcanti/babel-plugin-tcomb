@@ -127,12 +127,12 @@ export default function ({ types: t }) {
     return t.expressionStatement(assert);
   }
 
-  function getAssertForTypeAnnotation({ id, typeAnnotation }) {
-    const type = getType(typeAnnotation);
-    return getAssertForType({ id, type });
+  function isObjectStructureAnnotation(typeAnnotation) {
+    // Example: function foo(x : { bar: t.String })
+    return typeAnnotation.type === 'ObjectTypeAnnotation' && typeAnnotation.indexers.length !== 1
   }
 
-  function getAssertsForObjectTypeAnnotation({ name, objectTypeAnnotation }) {
+  function getAssertsForObjectTypeAnnotation({ name, typeAnnotation }) {
     const asserts = [];
 
     // Firstly assert that the param is in fact an Object.
@@ -143,98 +143,94 @@ export default function ({ types: t }) {
 
     // Now generate asserts for each of it the prop/type pairs within the
     // ObjectTypeAnnotation.
-    objectTypeAnnotation.properties
+    typeAnnotation.properties
       .forEach(prop => {
-        if (prop.value.type === 'ObjectTypeAnnotation'
-            && prop.value.indexers.length !== 1) {
-          asserts.splice(asserts.length, 0, ...getAssertsForObjectTypeAnnotation({
-            name: name + '.' + prop.key.name,
-            objectTypeAnnotation: prop.value
-          }));
+        const qualifiedName = name + '.' + prop.key.name;
+        if (isObjectStructureAnnotation(prop.value)) {
+          getAssertsForObjectTypeAnnotation({ name: qualifiedName, typeAnnotation: prop.value })
+            .forEach(x => asserts.push(x));
         } else {
-          asserts.push(getAssertForTypeAnnotation({
-            id: t.identifier(name + '.' + prop.key.name),
-            typeAnnotation: prop.value
-          }))
+          getAssertsForTypeAnnotation({ name: qualifiedName, typeAnnotation: prop.value })
+            .forEach(x => asserts.push(x));
         }
       });
 
     return asserts;
   }
 
+  function getAssertsForTypeAnnotation({ name, typeAnnotation }) {
+    if (isObjectStructureAnnotation(typeAnnotation)) {
+      return getAssertsForObjectTypeAnnotation({
+        name,
+        typeAnnotation
+      });
+    }
+
+    const type = getType(typeAnnotation);
+    return [getAssertForType({ id: t.identifier(name), type })];
+  }
+
   function getFunctionArgumentCheckExpressions(node) {
-    const typeAnnotatedParams = node.params.filter(x => x.typeAnnotation);
+    const typeAnnotatedParams = node.params.reduce((acc, param) => {
+      if (param.type === 'AssignmentPattern') {
+        acc.push({
+          name: param.left.name,
+          typeAnnotation: param.left.typeAnnotation
+            ? param.left.typeAnnotation.typeAnnotation
+            : param.typeAnnotation.typeAnnotation
+        });
+      } else if (param.typeAnnotation) {
+        acc.push({
+          name: param.name,
+          typeAnnotation: param.typeAnnotation.typeAnnotation
+        });
+      }
+
+      return acc;
+    }, []);
 
     if (typeAnnotatedParams.length > 0) {
       guardTcombImport();
     }
 
-    return typeAnnotatedParams.reduce((acc, param) => {
-      const annotations = [];
-
-      if (param.typeAnnotation) {
-        const name = param.type === 'AssignmentPattern'
-          ? param.left.name
-          : param.name;
-
-        if (param.typeAnnotation.typeAnnotation.type === 'ObjectTypeAnnotation'
-           && param.typeAnnotation.typeAnnotation.indexers.length !== 1) {
-          // e.g. function foo(x : { bar: t.String})
-          acc.splice(acc.length, 0, ...getAssertsForObjectTypeAnnotation({
-            name,
-            objectTypeAnnotation: param.typeAnnotation.typeAnnotation
-          }));
-        } else {
-          acc.push(getAssertForTypeAnnotation({
-            id: t.identifier(name),
-            typeAnnotation: param.typeAnnotation.typeAnnotation
-          }));
-        }
-      }
-
+    return typeAnnotatedParams.reduce((acc, { name, typeAnnotation } ) => {
+      getAssertsForTypeAnnotation({ name, typeAnnotation }).forEach(x => acc.push(x));
       return acc;
     }, []);
   }
 
   function getObjectPatternParamIdentifiers(properties) {
-    const result = [];
-
-    properties.forEach(property => {
+    return properties.reduce((acc, property) => {
       if (property.value.type === 'ObjectPattern') {
-        result.splice(result.length, 0, ...getObjectPatternParamIdentifiers(property.value.properties))
+        getObjectPatternParamIdentifiers(property.value.properties)
+          .forEach(x => acc.push(x))
       } else {
-        result.push(t.identifier(property.value.name));
+        acc.push(t.identifier(property.value.name));
       }
-    });
-
-    return result;
+      return acc;
+    }, []);
   }
 
   function getWrappedFunctionReturnWithTypeCheck(node) {
-    const params = [];
-    node.params.forEach((param) => {
+    const params = node.params.reduce((acc, param) => {
       if (param.type === 'ObjectPattern') {
-        params.splice(params.length, 0, ...getObjectPatternParamIdentifiers(param.properties));
+        getObjectPatternParamIdentifiers(param.properties)
+          .forEach(x => acc.push(x));
       } else if (param.type === 'AssignmentPattern') {
-        params.push(t.identifier(param.left.name));
+        acc.push(t.identifier(param.left.name));
       } else {
-        params.push(t.identifier(param.name));
+        acc.push(t.identifier(param.name));
       }
-    });
+      return acc;
+    }, []);
 
     const name = 'ret';
     const id = t.identifier(name);
 
-    let asserts;
-    if (node.returnType.typeAnnotation.type === 'ObjectTypeAnnotation'
-       && node.returnType.typeAnnotation.indexers.length !== 1) {
-      asserts = getAssertsForObjectTypeAnnotation({
-        name,
-        objectTypeAnnotation: node.returnType.typeAnnotation
-      });
-    } else {
-      asserts = [ getAssertForTypeAnnotation({ typeAnnotation: node.returnType.typeAnnotation, id }) ];
-    }
+    const asserts = getAssertsForTypeAnnotation({
+      name,
+      typeAnnotation: node.returnType.typeAnnotation
+    });
 
     return [
       t.variableDeclaration('var', [

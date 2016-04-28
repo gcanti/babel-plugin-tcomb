@@ -20,10 +20,9 @@ function foo(x: t.Number, y: t.String): t.String {
 // compiled to
 function foo(x: t.Number, y: t.String): t.String {
 
-  // check the arguments: tcomb types are identity functions
-  // containing type asserts
-  x = t.Number(x);
-  y = t.String(y);
+  // check the arguments
+  t.assert(t.Number.is(x), 'Invalid argument x (expected a ' + t.getTypeName(t.Number) + ')');
+  t.assert(t.String.is(y), 'Invalid argument y (expected a ' + t.getTypeName(t.String) + ')');
 
   // exec the original function
   const ret = function (x, y) {
@@ -31,7 +30,8 @@ function foo(x: t.Number, y: t.String): t.String {
   }(x, y);
 
   // check the return type
-  return t.String(ret);
+  t.assert(t.String.is(ret), 'Invalid argument ret (expected a ' + t.getTypeName(t.String) + ')');
+  return ret;
 }
 ```
 
@@ -94,10 +94,43 @@ function foo(x: t.Number, y = 1: t.Number) {
 
 // compiles to
 function foo(x: t.Number, y = 1: t.Number) {
-  t.assert(t.Number.is(x));
-  t.assert(t.Number.is(y));
+  t.assert(t.Number.is(x), ...);
+  t.assert(t.Number.is(y), ...);
 
   return x + y;
+}
+```
+
+Alternative syntax:
+
+```js
+function foo(x: t.Number, y: t.Number = 1) {
+  return x + y;
+}
+
+// compiles to
+function foo(x: t.Number, y = 1) {
+  t.assert(t.Number.is(x), ...);
+  t.assert(t.Number.is(y), ...);
+
+  return x + y;
+}
+```
+
+**structural typing**
+
+```js
+function getFullName(person: {name: t.String, surname: t.String}) {
+  return `${name} ${surname}`;
+}
+
+// compiles to
+function getFullName(person: { name: t.String; surname: t.String; }) {
+  t.assert(t.Object.is(person), 'Invalid argument person (expected a ' + t.getTypeName(t.Object) + ')');
+  t.assert(t.String.is(person.name), 'Invalid argument person.name (expected a ' + t.getTypeName(t.String) + ')');
+  t.assert(t.String.is(person.surname), 'Invalid argument person.surname (expected a ' + t.getTypeName(t.String) + ')');
+
+  return `${ name } ${ surname }`;
 }
 ```
 
@@ -114,7 +147,7 @@ function foo(person: Person) {
 
 // compiles to
 function foo(person: Person) {
-  t.assert(Person.is(person));
+  t.assert(Person.is(person), ...);
 
   return person.name;
 }
@@ -131,7 +164,7 @@ function foo(x: Integer) {
 
 // compiles to
 function foo(x: Integer) {
-  t.assert(Integer.is(x));
+  t.assert(Integer.is(x), ...);
 
   return x;
 }
@@ -146,7 +179,7 @@ function foo(x: ?t.String) {
 
 // compiles to
 function foo(x: ?t.String) {
-  t.assert(t.maybe(t.String).is(x));
+  t.assert(t.maybe(t.String).is(x), ...);
 
   return x;
 }
@@ -161,7 +194,7 @@ function foo(x: Array<t.String>) {
 
 // compiles to
 function foo(x: Array<t.String>) {
-  t.assert(t.list(t.String).is(x));
+  t.assert(t.list(t.String).is(x), ...);
 
   return x;
 }
@@ -176,7 +209,7 @@ function foo(x: [t.String, t.Number]) {
 
 // compiles to
 function foo(x: [t.String, t.Number]) {
-  t.assert(t.tuple([t.String, t.Number]).is(x));
+  t.assert(t.tuple([t.String, t.Number]).is(x), ...);
 
   return x;
 }
@@ -191,7 +224,7 @@ function foo(x: t.String | t.Number) {
 
 // compiles to
 function foo(x: t.String | t.Number) {
-  t.assert(t.union([t.String, t.Number]).is(x));
+  t.assert(t.union([t.String, t.Number]).is(x), ...);
 
   return x;
 }
@@ -206,7 +239,7 @@ function foo(x: {[key: t.String]: t.Number}) {
 
 // compiles to
 function foo(x: { [key: t.String]: t.Number }) {
-  t.assert(t.dict(t.String, t.Number).is(x));
+  t.assert(t.dict(t.String, t.Number).is(x), ...);
 
   return x;
 }
@@ -221,7 +254,7 @@ function foo(x: t.Number & t.String) {
 
 // compiles to
 function foo(x: t.Number & t.String) {
-  t.assert(t.intersection([t.Number, t.String]).is(x));
+  t.assert(t.intersection([t.Number, t.String]).is(x), ...);
 
   return x;
 }
@@ -234,7 +267,7 @@ const f = (x: t.String) => x;
 
 // compiles to
 const f = x => {
-  t.assert(t.String.is(x));
+  t.assert(t.String.is(x), ...);
 
   return x;
 };
@@ -252,7 +285,7 @@ class A {
 // compiles to
 class A {
   foo(x: t.String): t.String {
-    t.assert(t.String.is(x));
+    t.assert(t.String.is(x), ...);
 
     const ret = function (x) {
       return x;

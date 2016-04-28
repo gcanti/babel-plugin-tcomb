@@ -15,3 +15,11 @@ function foo(x: { foo: t.Boolean; y: { bar: t.String }; }): { baz: t.Boolean; a:
   t.assert(t.String.is(ret.a.bob), 'Invalid argument ret.a.bob (expected a ' + t.getTypeName(t.String) + ')');
   return ret;
 }
+
+function getFullName(person: { name: t.String; surname: t.String; }) {
+  t.assert(t.Object.is(person), 'Invalid argument person (expected a ' + t.getTypeName(t.Object) + ')');
+  t.assert(t.String.is(person.name), 'Invalid argument person.name (expected a ' + t.getTypeName(t.String) + ')');
+  t.assert(t.String.is(person.surname), 'Invalid argument person.surname (expected a ' + t.getTypeName(t.String) + ')');
+
+  return `${ name } ${ surname }`;
+}

@@ -129,7 +129,7 @@ export default function ({ types: t }) {
 
   function isObjectStructureAnnotation(typeAnnotation) {
     // Example: function foo(x : { bar: t.String })
-    return typeAnnotation.type === 'ObjectTypeAnnotation' && typeAnnotation.indexers.length !== 1
+    return typeAnnotation.type === 'ObjectTypeAnnotation' && typeAnnotation.indexers.length !== 1;
   }
 
   function getAssertsForObjectTypeAnnotation({ name, typeAnnotation }) {

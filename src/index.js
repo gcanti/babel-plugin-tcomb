@@ -106,8 +106,7 @@ export default function ({ Plugin, types: t }) {
     }
   }
 
-  function getAssert(typeAnnotation, id) {
-    const type = getType(typeAnnotation);
+  function getAssertForType({ id, type }) {
     const guard = t.callExpression(
       t.memberExpression(type, t.identifier('is')),
       [id]
@@ -128,59 +127,110 @@ export default function ({ Plugin, types: t }) {
     return t.expressionStatement(assert);
   }
 
-  function getFunctionArgumentChecks(node) {
+  function isObjectStructureAnnotation(typeAnnotation) {
+    // Example: function foo(x : { bar: t.String })
+    return typeAnnotation.type === 'ObjectTypeAnnotation' && typeAnnotation.indexers.length !== 1
+  }
 
-    function getTypeAnnotation(param) {
-      if (param.type === 'AssignmentPattern') {
-        if (param.typeAnnotation) {
-          return {name: param.left.name, typeAnnotation: param.typeAnnotation}
-        } else if (param.left.typeAnnotation) {
-          return {name: param.left.name, typeAnnotation: param.left.typeAnnotation}
+  function getAssertsForObjectTypeAnnotation({ name, typeAnnotation }) {
+    const asserts = [];
+
+    // Firstly assert that the param is in fact an Object.
+    asserts.push(getAssertForType({
+      id: t.identifier(name),
+      type: t.memberExpression(t.identifier(tcombLocalName), t.identifier('Object'))
+    }));
+
+    // Now generate asserts for each of it the prop/type pairs within the
+    // ObjectTypeAnnotation.
+    typeAnnotation.properties
+      .forEach(prop => {
+        const qualifiedName = name + '.' + prop.key.name;
+        if (isObjectStructureAnnotation(prop.value)) {
+          getAssertsForObjectTypeAnnotation({ name: qualifiedName, typeAnnotation: prop.value })
+            .forEach(x => asserts.push(x));
+        } else {
+          getAssertsForTypeAnnotation({ name: qualifiedName, typeAnnotation: prop.value })
+            .forEach(x => asserts.push(x));
         }
-      } else if (param.typeAnnotation) {
-        return {name: param.name, typeAnnotation: param.typeAnnotation};
-      }
+      });
+
+    return asserts;
+  }
+
+  function getAssertsForTypeAnnotation({ name, typeAnnotation }) {
+    if (isObjectStructureAnnotation(typeAnnotation)) {
+      return getAssertsForObjectTypeAnnotation({
+        name,
+        typeAnnotation
+      });
     }
 
-    const typeAnnotationParams = node.params.filter(getTypeAnnotation);
+    const type = getType(typeAnnotation);
+    return [getAssertForType({ id: t.identifier(name), type })];
+  }
 
-    if (typeAnnotationParams.length > 0) {
+  function getFunctionArgumentCheckExpressions(node) {
+    const typeAnnotatedParams = node.params.reduce((acc, param) => {
+      if (param.type === 'AssignmentPattern') {
+        acc.push({
+          name: param.left.name,
+          typeAnnotation: param.left.typeAnnotation
+            ? param.left.typeAnnotation.typeAnnotation
+            : param.typeAnnotation.typeAnnotation
+        });
+      } else if (param.typeAnnotation) {
+        acc.push({
+          name: param.name,
+          typeAnnotation: param.typeAnnotation.typeAnnotation
+        });
+      }
+
+      return acc;
+    }, []);
+
+    if (typeAnnotatedParams.length > 0) {
       guardTcombImport();
     }
 
-    return typeAnnotationParams.map((param) => {
-      const { name, typeAnnotation } = getTypeAnnotation(param)
-      const id = t.identifier(name);
-      return getAssert(typeAnnotation.typeAnnotation, id);
-    });
+    return typeAnnotatedParams.reduce((acc, { name, typeAnnotation } ) => {
+      getAssertsForTypeAnnotation({ name, typeAnnotation }).forEach(x => acc.push(x));
+      return acc;
+    }, []);
   }
 
   function getObjectPatternParamIdentifiers(properties) {
-    const result = [];
-
-    properties.forEach(property => {
+    return properties.reduce((acc, property) => {
       if (property.value.type === 'ObjectPattern') {
-        result.splice(result.length, 0, ...getObjectPatternParamIdentifiers(property.value.properties))
+        getObjectPatternParamIdentifiers(property.value.properties)
+          .forEach(x => acc.push(x))
       } else {
-        result.push(t.identifier(property.value.name));
+        acc.push(t.identifier(property.value.name));
       }
-    });
-
-    return result;
+      return acc;
+    }, []);
   }
 
   function getFunctionReturnTypeCheck(node) {
-    const params = [];
-    node.params.forEach((param) => {
+    const params = node.params.reduce((acc, param) => {
       if (param.type === 'ObjectPattern') {
-        params.splice(params.length, 0, ...getObjectPatternParamIdentifiers(param.properties));
+        getObjectPatternParamIdentifiers(param.properties)
+          .forEach(x => acc.push(x));
       } else if (param.type === 'AssignmentPattern') {
-        params.push(t.identifier(param.left.name));
+        acc.push(t.identifier(param.left.name));
       } else {
-        params.push(t.identifier(param.name));
+        acc.push(t.identifier(param.name));
       }
+      return acc;
+    }, []);
+
+    const name = 'ret';
+    const id = t.identifier(name);
+
+    const asserts = getAssertsForTypeAnnotation({
+      name,
+      typeAnnotation: node.returnType.typeAnnotation
     });
-    const id = t.identifier('ret');
 
     const isArrowExpression = ( node.type === 'ArrowFunctionExpression' && node.expression );
     const body = isArrowExpression ?
@@ -197,7 +247,7 @@ export default function ({ Plugin, types: t }) {
           )
         )
       ]),
-      getAssert(node.returnType.typeAnnotation, id),
+      ...asserts,
       t.returnStatement(id)
     ];
   }
@@ -239,7 +289,8 @@ export default function ({ Plugin, types: t }) {
 
   function guardTcombImport() {
     if (!tcombLocalName) {
-      throw new Error('When setting type annotations on a function, an import of tcomb must be available within the scope of the function.');
+      throw new Error(
+        'When setting type annotations on a function, an import of tcomb must be available within the scope of the function.');
     }
   }
 
@@ -280,7 +331,7 @@ export default function ({ Plugin, types: t }) {
         exit(node) {
           try {
 
-            const body = getFunctionArgumentChecks(node);
+            const body = getFunctionArgumentCheckExpressions(node);
             if (node.returnType) {
               guardTcombImport();
               body.push(...getFunctionReturnTypeCheck(node));

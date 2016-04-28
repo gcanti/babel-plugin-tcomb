@@ -5,10 +5,6 @@ const tcombLibraries = {
   'tcomb-form': 1
 };
 
-const appendToArray = (dest, xs) => {
-  dest.splice(dest.length, 0, ...xs);
-}
-
 export default function ({ types: t }) {
 
   let tcombLocalName = null;

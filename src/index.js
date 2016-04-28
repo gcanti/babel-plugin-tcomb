@@ -5,6 +5,10 @@ const tcombLibraries = {
   'tcomb-form': 1
 };
 
+const appendToArray = (dest, xs) => {
+  dest.splice(dest.length, 0, ...xs);
+}
+
 export default function ({ types: t }) {
 
   let tcombLocalName = null;
@@ -106,8 +110,7 @@ export default function ({ types: t }) {
     }
   }
 
-  function getAssert(typeAnnotation, id) {
-    const type = getType(typeAnnotation);
+  function getAssertForType({ id, type }) {
     const guard = t.callExpression(
       t.memberExpression(type, t.identifier('is')),
       [id]
@@ -128,28 +131,71 @@ export default function ({ types: t }) {
     return t.expressionStatement(assert);
   }
 
-  function getFunctionArgumentCheckExpressions(node) {
+  function getAssertForTypeAnnotation({ id, typeAnnotation }) {
+    const type = getType(typeAnnotation);
+    return getAssertForType({ id, type });
+  }
 
-    function getTypeAnnotation(param) {
-      if (param.typeAnnotation) {
-        if (param.type === 'AssignmentPattern') {
-          return {name: param.left.name, typeAnnotation: param.typeAnnotation}
+  function getAssertsForObjectTypeAnnotation({ name, objectTypeAnnotation }) {
+    const asserts = [];
+
+    // Firstly assert that the param is in fact an Object.
+    asserts.push(getAssertForType({
+      id: t.identifier(name),
+      type: t.memberExpression(t.identifier(tcombLocalName), t.identifier('Object'))
+    }));
+
+    // Now generate asserts for each of it the prop/type pairs within the
+    // ObjectTypeAnnotation.
+    objectTypeAnnotation.properties
+      .forEach(prop => {
+        if (prop.value.type === 'ObjectTypeAnnotation') {
+          asserts.splice(asserts.length, 0, ...getAssertsForObjectTypeAnnotation({
+            name: name + '.' + prop.key.name,
+            objectTypeAnnotation: prop.value
+          }));
+        } else {
+          asserts.push(getAssertForTypeAnnotation({
+            id: t.identifier(name + '.' + prop.key.name),
+            typeAnnotation: prop.value
+          }))
         }
-        return {name: param.name, typeAnnotation: param.typeAnnotation};
-      }
-    }
+      });
 
-    const typeAnnotationParams = node.params.filter(getTypeAnnotation);
+    return asserts;
+  }
 
-    if (typeAnnotationParams.length > 0) {
+  function getFunctionArgumentCheckExpressions(node) {
+    const typeAnnotatedParams = node.params.filter(x => x.typeAnnotation);
+
+    if (typeAnnotatedParams.length > 0) {
       guardTcombImport();
     }
 
-    return typeAnnotationParams.map((param) => {
-      const { name, typeAnnotation } = getTypeAnnotation(param)
-      const id = t.identifier(name);
-      return getAssert(typeAnnotation.typeAnnotation, id);
-    });
+    return typeAnnotatedParams.reduce((acc, param) => {
+      const annotations = [];
+
+      if (param.typeAnnotation) {
+        const name = param.type === 'AssignmentPattern'
+          ? param.left.name
+          : param.name;
+
+        if (param.typeAnnotation.typeAnnotation.type === 'ObjectTypeAnnotation') {
+          // e.g. function foo(x : { bar: t.String})
+          acc.splice(acc.length, 0, ...getAssertsForObjectTypeAnnotation({
+            name,
+            objectTypeAnnotation: param.typeAnnotation.typeAnnotation
+          }));
+        } else {
+          acc.push(getAssertForTypeAnnotation({
+            id: t.identifier(name),
+            typeAnnotation: param.typeAnnotation.typeAnnotation
+          }));
+        }
+      }
+
+      return acc;
+    }, []);
   }
 
   function getObjectPatternParamIdentifiers(properties) {
@@ -178,7 +224,18 @@ export default function ({ types: t }) {
       }
     });
 
-    const id = t.identifier('ret');
+    const name = 'ret';
+    const id = t.identifier(name);
+
+    let asserts;
+    if (node.returnType.typeAnnotation.type === 'ObjectTypeAnnotation') {
+      asserts = getAssertsForObjectTypeAnnotation({
+        name,
+        objectTypeAnnotation: node.returnType.typeAnnotation
+      });
+    } else {
+      asserts = [ getAssertForTypeAnnotation({ typeAnnotation: node.returnType.typeAnnotation, id }) ];
+    }
 
     return [
       t.variableDeclaration('var', [
@@ -190,7 +247,7 @@ export default function ({ types: t }) {
           )
         )
       ]),
-      getAssert(node.returnType.typeAnnotation, id),
+      ...asserts,
       t.returnStatement(id)
     ];
   }

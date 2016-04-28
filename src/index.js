@@ -145,7 +145,8 @@ export default function ({ types: t }) {
     // ObjectTypeAnnotation.
     objectTypeAnnotation.properties
       .forEach(prop => {
-        if (prop.value.type === 'ObjectTypeAnnotation') {
+        if (prop.value.type === 'ObjectTypeAnnotation'
+            && prop.value.indexers.length !== 1) {
           asserts.splice(asserts.length, 0, ...getAssertsForObjectTypeAnnotation({
             name: name + '.' + prop.key.name,
             objectTypeAnnotation: prop.value
@@ -176,7 +177,8 @@ export default function ({ types: t }) {
           ? param.left.name
           : param.name;
 
-        if (param.typeAnnotation.typeAnnotation.type === 'ObjectTypeAnnotation') {
+        if (param.typeAnnotation.typeAnnotation.type === 'ObjectTypeAnnotation'
+           && param.typeAnnotation.typeAnnotation.indexers.length !== 1) {
           // e.g. function foo(x : { bar: t.String})
           acc.splice(acc.length, 0, ...getAssertsForObjectTypeAnnotation({
             name,
@@ -224,7 +226,8 @@ export default function ({ types: t }) {
     const id = t.identifier(name);
 
     let asserts;
-    if (node.returnType.typeAnnotation.type === 'ObjectTypeAnnotation') {
+    if (node.returnType.typeAnnotation.type === 'ObjectTypeAnnotation'
+       && node.returnType.typeAnnotation.indexers.length !== 1) {
       asserts = getAssertsForObjectTypeAnnotation({
         name,
         objectTypeAnnotation: node.returnType.typeAnnotation

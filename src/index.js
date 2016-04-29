@@ -173,12 +173,17 @@ export default function ({ Plugin, types: t }) {
   function getFunctionArgumentCheckExpressions(node) {
     const typeAnnotatedParams = node.params.reduce((acc, param) => {
       if (param.type === 'AssignmentPattern') {
-        acc.push({
-          name: param.left.name,
-          typeAnnotation: param.left.typeAnnotation
-            ? param.left.typeAnnotation.typeAnnotation
-            : param.typeAnnotation.typeAnnotation
-        });
+        if (param.left.typeAnnotation) {
+          acc.push({
+            name: param.left.name,
+            typeAnnotation: param.left.typeAnnotation.typeAnnotation
+          });
+        } else if (param.typeAnnotation) {
+          acc.push({
+            name: param.left.name,
+            typeAnnotation: param.typeAnnotation.typeAnnotation
+          });
+        }
       } else if (param.typeAnnotation) {
         acc.push({
           name: param.name,

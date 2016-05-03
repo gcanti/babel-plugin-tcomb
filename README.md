@@ -50,36 +50,11 @@ First, install via npm.
 npm install --save-dev babel-plugin-tcomb
 ```
 
-Then, in your babel configuration (usually in your .babelrc file), add "tcomb" to your list of plugins:
+Then, in your babel configuration (usually in your .babelrc file), add (at least) the following plugins:
 
 ```json
 {
   "plugins" : ["syntax-flow", "tcomb", "transform-flow-strip-types"]
-}
-```
-
-or
-
-```json
-"env": {
-  "development": {
-    "plugins": [
-      "tcomb"
-    ]
-  }
-}
-```
-
-## Webpack config
-
-```js
-module: {
-  loaders: [
-    {
-      test: /\.jsx?$/,
-      loader: 'babel?plugins=babel-plugin-tcomb'
-    }
-  ]
 }
 ```
 

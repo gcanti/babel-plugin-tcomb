@@ -296,7 +296,7 @@ export default function ({ types: t }) {
 
   return {
     visitor: {
-      File: {
+      Program: {
         enter() {
           // Ensure we reset the import between each file so that our guard
           // of the import works correctly.
@@ -305,7 +305,7 @@ export default function ({ types: t }) {
       },
 
       ImportDeclaration({ node }) {
-        if (tcombLibraries.hasOwnProperty(node.source.value)) {
+        if (!tcombLocalName && tcombLibraries.hasOwnProperty(node.source.value)) {
           tcombLocalName = getTcombLocalNameFromImports(node);
         }
       },

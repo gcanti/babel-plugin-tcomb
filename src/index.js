@@ -312,7 +312,7 @@ export default function ({ Plugin, types: t }) {
 
       ImportDeclaration: {
         exit(node) {
-          if (tcombLibraries.hasOwnProperty(node.source.value)) {
+          if (!tcombLocalName && tcombLibraries.hasOwnProperty(node.source.value)) {
             tcombLocalName = getTcombLocalNameFromImports(node);
           }
         }

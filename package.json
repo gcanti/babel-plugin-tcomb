@@ -22,7 +22,7 @@
     "babel-eslint": "4.1.8",
     "eslint": "1.10.3",
     "mocha": "^2.2.5",
-    "tcomb": "^2.5.0"
+    "tcomb": "^3.0.0"
   },
   "tags": [
     "babel-plugin",

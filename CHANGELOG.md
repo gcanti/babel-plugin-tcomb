@@ -12,6 +12,13 @@
 **Note**: Gaps between patch versions are faulty/broken releases.
 **Note**: A feature tagged as Experimental is in a high state of flux, you're at risk of it changing without notice.
 
+## v0.2.3
+
+- **Bug Fix**
+  - broken noop case for default params, fix #31 (@ctrlplusb)
+  - Import guarding correctly resets between files (@ctrlplusb)
+  - Import guarding now short circuits import searching after the first valid tcomb import instance is resolved. This provides higher efficiency whilst also preventing strange bug cases that could occur (@ctrlplusb)
+
 ## v0.2.2
 
 - **New Feature**

@@ -2,7 +2,7 @@ import t from 'tcomb';
 const f = x => {
   t.assert(t.is(x, t.String), 'Invalid argument x (expected a ' + t.getTypeName(t.String) + ')');
 
-  var ret = function (x) {
+  const ret = function (x) {
     return x;
   }.call(this, x);
 

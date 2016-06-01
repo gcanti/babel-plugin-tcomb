@@ -5,7 +5,7 @@ function sum(a: Number, b: Number): Number {
 
   require('tcomb').assert(require('tcomb').is(b, Number), 'Invalid argument b (expected a ' + require('tcomb').getTypeName(Number) + ')');
 
-  var ret = function (a, b) {
+  const ret = function (a, b) {
     return a + b;
   }.call(this, a, b);
 

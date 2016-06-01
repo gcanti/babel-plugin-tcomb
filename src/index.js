@@ -55,56 +55,63 @@ export default function ({ types: t }) {
     return t.identifier(id.name);
   }
 
-  function getList(node) {
+  function addName(args, name) {
+    if (name) {
+      args.push(name);
+    }
+    return args;
+  }
+
+  function getList(node, name) {
     return t.callExpression(
       t.memberExpression(tcombLocalName, t.identifier('list')),
-      [getType(node)]
+      addName([getType(node)], name)
     );
   }
 
-  function getMaybe(type) {
+  function getMaybe(type, name) {
     return t.callExpression(
       t.memberExpression(tcombLocalName, t.identifier('maybe')),
-      [type]
+      addName([type], name)
     );
   }
 
-  function getTuple(nodes) {
+  function getTuple(nodes, name) {
     return t.callExpression(
       t.memberExpression(tcombLocalName, t.identifier('tuple')),
-      [t.arrayExpression(nodes.map(getType))]
+      addName([t.arrayExpression(nodes.map(getType))], name)
     );
   }
 
-  function getUnion(nodes) {
+  function getUnion(nodes, name) {
     return t.callExpression(
       t.memberExpression(tcombLocalName, t.identifier('union')),
-      [t.arrayExpression(nodes.map(getType))]
+      addName([t.arrayExpression(nodes.map(getType))], name)
     );
   }
 
-  function getDict(key, value) {
+  function getDict(key, value, name) {
     return t.callExpression(
       t.memberExpression(tcombLocalName, t.identifier('dict')),
-      [getType(key), getType(value)]
+      addName([getType(key), getType(value)], name)
     );
   }
 
-  function getIntersection(nodes) {
+  function getIntersection(nodes, name) {
     return t.callExpression(
       t.memberExpression(tcombLocalName, t.identifier('intersection')),
-      [t.arrayExpression(nodes.map(getType))]
+      addName([t.arrayExpression(nodes.map(getType))], name)
     );
   }
 
-  function getFunc(domain, codomain) {
+  function getFunc(domain, codomain, name) {
     return t.callExpression(
       t.memberExpression(tcombLocalName, t.identifier('func')),
-      [t.arrayExpression(domain.map(getType)), getType(codomain)]
+      addName([t.arrayExpression(domain.map(getType)), getType(codomain)], name)
     );
   }
 
-  function getInterface(annotation) {
+  function getInterface(annotation, name) {
     const props = annotation.properties
       .map(prop => {
         const name = t.identifier(prop.key.name);
@@ -116,7 +123,7 @@ export default function ({ types: t }) {
       });
     return t.callExpression(
       t.memberExpression(tcombLocalName, t.identifier('inter')),
-      [t.objectExpression(props)]
+      addName([t.objectExpression(props)], name)
     );
   }
 
@@ -148,7 +155,7 @@ export default function ({ types: t }) {
     return t.memberExpression(tcombLocalName, t.identifier('Any'))
   }
 
-  function getType(annotation) {
+  function getType(annotation, name) {
     switch (annotation.type) {
 
       case 'GenericTypeAnnotation' :
@@ -157,33 +164,33 @@ export default function ({ types: t }) {
             // TODO(giu) what's this?
             throw new SyntaxError(`Unsupported Array type annotation`);
           }
-          return getList(annotation.typeParameters.params[0]);
+          return getList(annotation.typeParameters.params[0], name);
         }
         return getExpressionFromGenericTypeAnnotation(annotation.id);
 
       case 'ArrayTypeAnnotation' :
-        return getList(annotation.elementType);
+        return getList(annotation.elementType, name);
 
       case 'NullableTypeAnnotation' :
-        return getMaybe(getType(annotation.typeAnnotation));
+        return getMaybe(getType(annotation.typeAnnotation), name);
 
       case 'TupleTypeAnnotation' :
-        return getTuple(annotation.types);
+        return getTuple(annotation.types, name);
 
       case 'UnionTypeAnnotation' :
-        return getUnion(annotation.types);
+        return getUnion(annotation.types, name);
 
       case 'ObjectTypeAnnotation' :
         if (annotation.indexers.length === 1) {
-          return getDict(annotation.indexers[0].key, annotation.indexers[0].value);
+          return getDict(annotation.indexers[0].key, annotation.indexers[0].value, name);
         }
-        return getInterface(annotation);
+        return getInterface(annotation, name);
 
       case 'IntersectionTypeAnnotation' :
-        return getIntersection(annotation.types);
+        return getIntersection(annotation.types, name);
 
       case 'FunctionTypeAnnotation' :
-        return getFunc(annotation.params.map((param) => param.typeAnnotation), annotation.returnType);
+        return getFunc(annotation.params.map((param) => param.typeAnnotation), annotation.returnType, name);
 
       case 'NumberTypeAnnotation' :
         return getNumber();
@@ -305,7 +312,7 @@ export default function ({ types: t }) {
     });
 
     return [
-      t.variableDeclaration('var', [
+      t.variableDeclaration('const', [
         t.variableDeclarator(
           id,
           t.callExpression(
@@ -345,6 +352,19 @@ export default function ({ types: t }) {
             tcombLibraries.hasOwnProperty(node.init.arguments[0].value)) {
           tcombLocalName = getTcombLocalNameFromRequires(node);
         }
+      },
+
+      TypeAlias(path) {
+        const { node } = path;
+        ensureTcombLocalName();
+        path.replaceWith(
+          t.variableDeclaration('const', [
+            t.variableDeclarator(
+              node.id,
+              getType(node.right, t.stringLiteral(node.id.name))
+            )
+          ])
+        );
       },
 
       Function(path) {

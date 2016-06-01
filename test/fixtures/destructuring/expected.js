@@ -11,7 +11,7 @@ function foo({ x }: { x: t.String }) {
 }
 
 function bar({ a } = {}): t.String {
-  var ret = function ({ a }) {
+  const ret = function ({ a }) {
     return x;
   }.call(this, { a });
 

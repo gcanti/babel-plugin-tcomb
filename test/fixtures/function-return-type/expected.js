@@ -4,7 +4,7 @@ function foo(x: t.Number, y: t.String): t.String {
   t.assert(t.is(x, t.Number), 'Invalid argument x (expected a ' + t.getTypeName(t.Number) + ')');
   t.assert(t.is(y, t.String), 'Invalid argument y (expected a ' + t.getTypeName(t.String) + ')');
 
-  var ret = function (x, y) {
+  const ret = function (x, y) {
     return x + y;
   }.call(this, x, y);
 
@@ -15,7 +15,7 @@ function foo(x: t.Number, y: t.String): t.String {
 function bar(x, y: t.String): t.String {
   t.assert(t.is(y, t.String), 'Invalid argument y (expected a ' + t.getTypeName(t.String) + ')');
 
-  var ret = function (x, y) {
+  const ret = function (x, y) {
     return x + y;
   }.call(this, x, y);
 

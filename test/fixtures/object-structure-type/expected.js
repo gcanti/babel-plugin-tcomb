@@ -12,7 +12,7 @@ function foo(x: { foo: t.Boolean; y: { bar: t.String }; }): { baz: t.Boolean; a:
     })
   })) + ')');
 
-  var ret = function (x) {
+  const ret = function (x) {
     return { baz: foo, a: { bob: bar } };
   }.call(this, x);
 

@@ -1,25 +1,43 @@
 import t from 'tcomb';
 function foo(x: { foo: t.Boolean; y: { bar: t.String }; }): { baz: t.Boolean; a: { bob: t.String }; } {
-  t.assert(t.Object.is(x), 'Invalid argument x (expected a ' + t.getTypeName(t.Object) + ')');
-  t.assert(t.Boolean.is(x.foo), 'Invalid argument x.foo (expected a ' + t.getTypeName(t.Boolean) + ')');
-  t.assert(t.Object.is(x.y), 'Invalid argument x.y (expected a ' + t.getTypeName(t.Object) + ')');
-  t.assert(t.String.is(x.y.bar), 'Invalid argument x.y.bar (expected a ' + t.getTypeName(t.String) + ')');
+  t.assert(t.is(x, t.inter({
+    foo: t.Boolean,
+    y: t.inter({
+      bar: t.String
+    })
+  })), 'Invalid argument x (expected a ' + t.getTypeName(t.inter({
+    foo: t.Boolean,
+    y: t.inter({
+      bar: t.String
+    })
+  })) + ')');
 
   var ret = function (x) {
     return { baz: foo, a: { bob: bar } };
   }.call(this, x);
 
-  t.assert(t.Object.is(ret), 'Invalid argument ret (expected a ' + t.getTypeName(t.Object) + ')');
-  t.assert(t.Boolean.is(ret.baz), 'Invalid argument ret.baz (expected a ' + t.getTypeName(t.Boolean) + ')');
-  t.assert(t.Object.is(ret.a), 'Invalid argument ret.a (expected a ' + t.getTypeName(t.Object) + ')');
-  t.assert(t.String.is(ret.a.bob), 'Invalid argument ret.a.bob (expected a ' + t.getTypeName(t.String) + ')');
+  t.assert(t.is(ret, t.inter({
+    baz: t.Boolean,
+    a: t.inter({
+      bob: t.String
+    })
+  })), 'Invalid argument ret (expected a ' + t.getTypeName(t.inter({
+    baz: t.Boolean,
+    a: t.inter({
+      bob: t.String
+    })
+  })) + ')');
   return ret;
 }
 
 function getFullName(person: { name: t.String; surname: t.String; }) {
-  t.assert(t.Object.is(person), 'Invalid argument person (expected a ' + t.getTypeName(t.Object) + ')');
-  t.assert(t.String.is(person.name), 'Invalid argument person.name (expected a ' + t.getTypeName(t.String) + ')');
-  t.assert(t.String.is(person.surname), 'Invalid argument person.surname (expected a ' + t.getTypeName(t.String) + ')');
+  t.assert(t.is(person, t.inter({
+    name: t.String,
+    surname: t.String
+  })), 'Invalid argument person (expected a ' + t.getTypeName(t.inter({
+    name: t.String,
+    surname: t.String
+  })) + ')');
 
   return `${ name } ${ surname }`;
 }

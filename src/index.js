@@ -2,12 +2,51 @@ const tcombLibraries = {
   'tcomb': 1,
   'tcomb-validation': 1,
   'tcomb-react': 1,
-  'tcomb-form': 1
+  'tcomb-form': 1,
+  'redux-tcomb': 1
 };
 
 export default function ({ types: t }) {
 
   let tcombLocalName = null;
+
+  function ensureTcombLocalName() {
+    if (!tcombLocalName) {
+      tcombLocalName = t.callExpression(
+        t.identifier('require'),
+        [t.StringLiteral('tcomb')]
+      );
+    }
+  }
+
+  function getTcombLocalNameFromImports(node) {
+    for (let i = 0, len = node.specifiers.length ; i < len ; i++) {
+      const specifier = node.specifiers[i];
+      const found = ( specifier.type === 'ImportSpecifier' && specifier.imported.name === 't' ) || specifier.type === 'ImportDefaultSpecifier'
+      if (found) {
+        return t.identifier(specifier.local.name);
+      }
+    }
+  }
+
+  function getTcombLocalNameFromRequires(node) {
+    const importName = node.init.arguments[0].value;
+
+    if (importName === 'tcomb' && node.id.type === 'Identifier') {
+      return t.identifier(node.id.name);
+    }
+    if (node.id.type === 'Identifier') {
+      return t.identifier(node.id.name + '.t');
+    }
+    if (node.id.type == 'ObjectPattern') {
+      for (let i = 0, len = node.id.properties.length; i < len; i++) {
+        const property = node.id.properties[i];
+        if (property.key.name === 't') {
+          return t.identifier(property.key.name);
+        }
+      }
+    }
+  }
 
   function getExpressionFromGenericTypeAnnotation(id) {
     if (id.type === 'QualifiedTypeIdentifier') {
@@ -18,51 +57,95 @@ export default function ({ types: t }) {
 
   function getList(node) {
     return t.callExpression(
-      t.memberExpression(t.identifier(tcombLocalName), t.identifier('list')),
+      t.memberExpression(tcombLocalName, t.identifier('list')),
       [getType(node)]
     );
   }
 
-  function getMaybe(node) {
+  function getMaybe(type) {
     return t.callExpression(
-      t.memberExpression(t.identifier(tcombLocalName), t.identifier('maybe')),
-      [getType(node)]
+      t.memberExpression(tcombLocalName, t.identifier('maybe')),
+      [type]
     );
   }
 
   function getTuple(nodes) {
     return t.callExpression(
-      t.memberExpression(t.identifier(tcombLocalName), t.identifier('tuple')),
+      t.memberExpression(tcombLocalName, t.identifier('tuple')),
       [t.arrayExpression(nodes.map(getType))]
     );
   }
 
   function getUnion(nodes) {
     return t.callExpression(
-      t.memberExpression(t.identifier(tcombLocalName), t.identifier('union')),
+      t.memberExpression(tcombLocalName, t.identifier('union')),
       [t.arrayExpression(nodes.map(getType))]
     );
   }
 
   function getDict(key, value) {
     return t.callExpression(
-      t.memberExpression(t.identifier(tcombLocalName), t.identifier('dict')),
+      t.memberExpression(tcombLocalName, t.identifier('dict')),
       [getType(key), getType(value)]
     );
   }
 
   function getIntersection(nodes) {
     return t.callExpression(
-      t.memberExpression(t.identifier(tcombLocalName), t.identifier('intersection')),
+      t.memberExpression(tcombLocalName, t.identifier('intersection')),
       [t.arrayExpression(nodes.map(getType))]
     );
   }
 
   function getFunc(domain, codomain) {
     return t.callExpression(
-      t.memberExpression(t.identifier(tcombLocalName), t.identifier('func')),
+      t.memberExpression(tcombLocalName, t.identifier('func')),
       [t.arrayExpression(domain.map(getType)), getType(codomain)]
     );
+  }
+
+  function getInterface(annotation) {
+    const props = annotation.properties
+      .map(prop => {
+        const name = t.identifier(prop.key.name);
+        let type = getType(prop.value);
+        if (prop.optional) {
+          type = getMaybe(type)
+        }
+        return t.objectProperty(name, type);
+      });
+    return t.callExpression(
+      t.memberExpression(tcombLocalName, t.identifier('inter')),
+      [t.objectExpression(props)]
+    );
+  }
+
+  //
+  // Flow types
+  //
+
+  function getNumber() {
+    return t.memberExpression(tcombLocalName, t.identifier('Number'))
+  }
+
+  function getString() {
+    return t.memberExpression(tcombLocalName, t.identifier('String'))
+  }
+
+  function getBoolean() {
+    return t.memberExpression(tcombLocalName, t.identifier('Boolean'))
+  }
+
+  function getVoid() {
+    return t.memberExpression(tcombLocalName, t.identifier('Nil'))
+  }
+
+  function getNull() {
+    return t.memberExpression(tcombLocalName, t.identifier('Nil'))
+  }
+
+  function getAny() {
+    return t.memberExpression(tcombLocalName, t.identifier('Any'))
   }
 
   function getType(annotation) {
@@ -71,6 +154,7 @@ export default function ({ types: t }) {
       case 'GenericTypeAnnotation' :
         if (annotation.id.name === 'Array') {
           if (!annotation.typeParameters || annotation.typeParameters.params.length !== 1) {
+            // TODO(giu) what's this?
             throw new SyntaxError(`Unsupported Array type annotation`);
           }
           return getList(annotation.typeParameters.params[0]);
@@ -81,7 +165,7 @@ export default function ({ types: t }) {
         return getList(annotation.elementType);
 
       case 'NullableTypeAnnotation' :
-        return getMaybe(annotation.typeAnnotation);
+        return getMaybe(getType(annotation.typeAnnotation));
 
       case 'TupleTypeAnnotation' :
         return getTuple(annotation.types);
@@ -93,7 +177,7 @@ export default function ({ types: t }) {
         if (annotation.indexers.length === 1) {
           return getDict(annotation.indexers[0].key, annotation.indexers[0].value);
         }
-        throw new SyntaxError(`Unsupported Object type annotation`);
+        return getInterface(annotation);
 
       case 'IntersectionTypeAnnotation' :
         return getIntersection(annotation.types);
@@ -101,27 +185,46 @@ export default function ({ types: t }) {
       case 'FunctionTypeAnnotation' :
         return getFunc(annotation.params.map((param) => param.typeAnnotation), annotation.returnType);
 
+      case 'NumberTypeAnnotation' :
+        return getNumber();
+
+      case 'StringTypeAnnotation' :
+        return getString();
+
+      case 'BooleanTypeAnnotation' :
+        return getBoolean();
+
+      case 'VoidTypeAnnotation' :
+        return getVoid();
+
+      case 'NullLiteralTypeAnnotation' :
+        return getNull();
+
+      case 'AnyTypeAnnotation' :
+      case 'MixedTypeAnnotation' :
+        return getAny();
+
       default :
         throw new SyntaxError(`Unsupported type annotation: ${annotation.type}`);
     }
   }
 
-  function getAssertForType({ id, type }) {
+  function getAssertForRequiredType({ id, type }) {
     const guard = t.callExpression(
-      t.memberExpression(type, t.identifier('is')),
-      [id]
+      t.memberExpression(tcombLocalName, t.identifier('is')),
+      [id, type]
     );
     const message = t.binaryExpression(
       '+',
       t.binaryExpression(
         '+',
         t.stringLiteral('Invalid argument ' + id.name + ' (expected a '),
-        t.callExpression(t.memberExpression(t.identifier(tcombLocalName), t.identifier('getTypeName')), [type])
+        t.callExpression(t.memberExpression(tcombLocalName, t.identifier('getTypeName')), [type])
       ),
       t.stringLiteral(')')
     );
     const assert = t.callExpression(
-      t.memberExpression(t.identifier(tcombLocalName), t.identifier('assert')),
+      t.memberExpression(tcombLocalName, t.identifier('assert')),
       [guard, message]
     );
     return t.expressionStatement(assert);
@@ -132,107 +235,71 @@ export default function ({ types: t }) {
     return typeAnnotation.type === 'ObjectTypeAnnotation' && typeAnnotation.indexers.length !== 1;
   }
 
-  function getAssertsForObjectTypeAnnotation({ name, typeAnnotation }) {
-    const asserts = [];
-
-    // Firstly assert that the param is in fact an Object.
-    asserts.push(getAssertForType({
-      id: t.identifier(name),
-      type: t.memberExpression(t.identifier(tcombLocalName), t.identifier('Object'))
-    }));
-
-    // Now generate asserts for each of it the prop/type pairs within the
-    // ObjectTypeAnnotation.
-    typeAnnotation.properties
-      .forEach(prop => {
-        const qualifiedName = name + '.' + prop.key.name;
-        if (isObjectStructureAnnotation(prop.value)) {
-          getAssertsForObjectTypeAnnotation({ name: qualifiedName, typeAnnotation: prop.value })
-            .forEach(x => asserts.push(x));
-        } else {
-          getAssertsForTypeAnnotation({ name: qualifiedName, typeAnnotation: prop.value })
-            .forEach(x => asserts.push(x));
-        }
-      });
-
-    return asserts;
-  }
-
-  function getAssertsForTypeAnnotation({ name, typeAnnotation }) {
-    if (isObjectStructureAnnotation(typeAnnotation)) {
-      return getAssertsForObjectTypeAnnotation({
-        name,
-        typeAnnotation
-      });
+  function getAssert({ name, optional, typeAnnotation }) {
+    let type = getType(typeAnnotation);
+    if (optional) {
+      type = getMaybe(type);
     }
-
-    const type = getType(typeAnnotation);
-    return [getAssertForType({ id: t.identifier(name), type })];
+    return getAssertForRequiredType({ id: t.identifier(name), type });
   }
 
   function getFunctionArgumentCheckExpressions(node) {
-    const typeAnnotatedParams = node.params.reduce((acc, param) => {
+    const params = [];
+
+    node.params.forEach((param, i) => {
       if (param.type === 'AssignmentPattern') {
         if (param.left.typeAnnotation) {
-          acc.push({
+          params.push({
             name: param.left.name,
+            optional: param.optional,
             typeAnnotation: param.left.typeAnnotation.typeAnnotation
           });
-        } else if (param.typeAnnotation) {
-          acc.push({
+        }
+        else if (param.typeAnnotation) {
+          params.push({
             name: param.left.name,
+            optional: param.optional,
             typeAnnotation: param.typeAnnotation.typeAnnotation
           });
         }
-      } else if (param.typeAnnotation) {
-        acc.push({
-          name: param.name,
+      }
+      else if (param.typeAnnotation) {
+        params.push({
+          name: param.type === 'ObjectPattern' ? 'arguments[' + i + ']' : param.name,
+          optional: param.optional,
           typeAnnotation: param.typeAnnotation.typeAnnotation
         });
       }
+    });
 
-      return acc;
-    }, []);
-
-    if (typeAnnotatedParams.length > 0) {
-      guardTcombImport();
+    if (params.length > 0) {
+      ensureTcombLocalName();
     }
 
-    return typeAnnotatedParams.reduce((acc, { name, typeAnnotation } ) => {
-      getAssertsForTypeAnnotation({ name, typeAnnotation }).forEach(x => acc.push(x));
-      return acc;
-    }, []);
-  }
-
-  function getObjectPatternParamIdentifiers(properties) {
-    return properties.reduce((acc, property) => {
-      if (property.value.type === 'ObjectPattern') {
-        getObjectPatternParamIdentifiers(property.value.properties)
-          .forEach(x => acc.push(x))
-      } else {
-        acc.push(t.identifier(property.value.name));
-      }
-      return acc;
-    }, []);
+    return params.map(getAssert)
   }
 
   function getWrappedFunctionReturnWithTypeCheck(node) {
-    const params = node.params.reduce((acc, param) => {
+    const params = node.params.map(param => {
       if (param.type === 'ObjectPattern') {
-        getObjectPatternParamIdentifiers(param.properties)
-          .forEach(x => acc.push(x));
-      } else if (param.type === 'AssignmentPattern') {
-        acc.push(t.identifier(param.left.name));
-      } else {
-        acc.push(t.identifier(param.name));
+        return param;
       }
-      return acc;
-    }, []);
+      else if (param.type === 'AssignmentPattern') {
+        return param.left;
+      }
+      return t.identifier(param.name);
+    })
+    const callParams = params.map(param => {
+      if (param.type === 'ObjectPattern') {
+        return t.objectExpression(param.properties);
+      }
+      return param;
+    })
 
     const name = 'ret';
     const id = t.identifier(name);
 
-    const asserts = getAssertsForTypeAnnotation({
+    const assert = getAssert({
       name,
       typeAnnotation: node.returnType.typeAnnotation
     });
@@ -243,55 +310,13 @@ export default function ({ types: t }) {
           id,
           t.callExpression(
             t.memberExpression(t.functionExpression(null, params, node.body), t.identifier('call')),
-            [t.identifier('this')].concat(params)
+            [t.identifier('this')].concat(callParams)
           )
         )
       ]),
-      ...asserts,
+      assert,
       t.returnStatement(id)
     ];
-  }
-
-  function getTcombLocalNameFromImports(node) {
-    let result;
-
-    for (let i = 0, len = node.specifiers.length ; i < len ; i++) {
-      const specifier = node.specifiers[i];
-      if (specifier.type === 'ImportSpecifier' && specifier.imported.name === 't') {
-        result = specifier.local.name;
-      } else if (specifier.type === 'ImportDefaultSpecifier') {
-        result = specifier.local.name;
-      }
-    }
-
-    return result;
-  }
-
-  function getTcombLocalNameFromRequires(node) {
-    let result;
-
-    const importName = node.init.arguments[0].value;
-
-    if (importName === 'tcomb' && node.id.type === 'Identifier') {
-      result = node.id.name;
-    } else if (node.id.type === 'Identifier') {
-      result = node.id.name + '.t';
-    } else if (node.id.type == 'ObjectPattern') {
-      node.id.properties.forEach(property => {
-        if (property.key.name === 't') {
-          result = property.key.name;
-        }
-      });
-    }
-
-    return result;
-  }
-
-  function guardTcombImport() {
-    if (!tcombLocalName) {
-      throw new Error(
-        'When setting type annotations on a function, an import of tcomb must be available within the scope of the function.');
-    }
   }
 
   return {
@@ -336,7 +361,7 @@ export default function ({ types: t }) {
           // If we have a return type then we will wrap our entire function
           // body and insert a type check on the returned value.
           if (node.returnType) {
-            guardTcombImport();
+            ensureTcombLocalName();
 
             const funcBody = path.get('body');
 

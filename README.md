@@ -12,17 +12,19 @@ babel-plugin-tcomb is a babel plugin for runtime type checking using tcomb. You 
 ```js
 import t from 'tcomb';
 
-// add type annotations
 function foo(x: t.Number, y: t.String): t.String {
   return x + y;
 }
+```
 
-// compiled to
+compiles to:
+
+```js
 function foo(x: t.Number, y: t.String): t.String {
 
   // check the arguments
-  t.assert(t.Number.is(x), 'Invalid argument x (expected a ' + t.getTypeName(t.Number) + ')');
-  t.assert(t.String.is(y), 'Invalid argument y (expected a ' + t.getTypeName(t.String) + ')');
+  t.assert(t.is(x, t.Number), 'Invalid argument x (expected a ' + t.getTypeName(t.Number) + ')');
+  t.assert(t.is(y, t.String.is), 'Invalid argument y (expected a ' + t.getTypeName(t.String) + ')');
 
   // exec the original function
   const ret = function (x, y) {
@@ -30,7 +32,7 @@ function foo(x: t.Number, y: t.String): t.String {
   }(x, y);
 
   // check the return type
-  t.assert(t.String.is(ret), 'Invalid argument ret (expected a ' + t.getTypeName(t.String) + ')');
+  t.assert(t.is(ret, t.String), 'Invalid argument ret (expected a ' + t.getTypeName(t.String) + ')');
   return ret;
 }
 ```
@@ -98,15 +100,6 @@ function foo(x: t.Number, y = 1) {
 function getFullName(person: {name: t.String, surname: t.String}) {
   return `${name} ${surname}`;
 }
-
-// compiles to
-function getFullName(person: { name: t.String; surname: t.String; }) {
-  t.assert(t.Object.is(person), 'Invalid argument person (expected a ' + t.getTypeName(t.Object) + ')');
-  t.assert(t.String.is(person.name), 'Invalid argument person.name (expected a ' + t.getTypeName(t.String) + ')');
-  t.assert(t.String.is(person.surname), 'Invalid argument person.surname (expected a ' + t.getTypeName(t.String) + ')');
-
-  return `${ name } ${ surname }`;
-}
 ```
 
 **`struct` combinator**
@@ -119,13 +112,6 @@ const Person = t.struct({
 function foo(person: Person) {
   return person.name;
 }
-
-// compiles to
-function foo(person: Person) {
-  t.assert(Person.is(person), ...);
-
-  return person.name;
-}
 ```
 
 **`refinement` combinator**
@@ -136,26 +122,12 @@ const Integer = t.refinement(t.Number, (n) => n % 1 === 0);
 function foo(x: Integer) {
   return x;
 }
-
-// compiles to
-function foo(x: Integer) {
-  t.assert(Integer.is(x), ...);
-
-  return x;
-}
 ```
 
 **`maybe` combinator**
 
 ```js
 function foo(x: ?t.String) {
-  return x;
-}
-
-// compiles to
-function foo(x: ?t.String) {
-  t.assert(t.maybe(t.String).is(x), ...);
-
   return x;
 }
 ```
@@ -166,26 +138,12 @@ function foo(x: ?t.String) {
 function foo(x: Array<t.String>) {
   return x;
 }
-
-// compiles to
-function foo(x: Array<t.String>) {
-  t.assert(t.list(t.String).is(x), ...);
-
-  return x;
-}
 ```
 
 **`tuple` combinator**
 
 ```js
 function foo(x: [t.String, t.Number]) {
-  return x;
-}
-
-// compiles to
-function foo(x: [t.String, t.Number]) {
-  t.assert(t.tuple([t.String, t.Number]).is(x), ...);
-
   return x;
 }
 ```
@@ -196,26 +154,12 @@ function foo(x: [t.String, t.Number]) {
 function foo(x: t.String | t.Number) {
   return x;
 }
-
-// compiles to
-function foo(x: t.String | t.Number) {
-  t.assert(t.union([t.String, t.Number]).is(x), ...);
-
-  return x;
-}
 ```
 
 **`dict` combinator**
 
 ```js
 function foo(x: {[key: t.String]: t.Number}) {
-  return x;
-}
-
-// compiles to
-function foo(x: { [key: t.String]: t.Number }) {
-  t.assert(t.dict(t.String, t.Number).is(x), ...);
-
   return x;
 }
 ```
@@ -226,26 +170,12 @@ function foo(x: { [key: t.String]: t.Number }) {
 function foo(x: t.Number & t.String) {
   return x;
 }
-
-// compiles to
-function foo(x: t.Number & t.String) {
-  t.assert(t.intersection([t.Number, t.String]).is(x), ...);
-
-  return x;
-}
 ```
 
 **Arrow functions**
 
 ```js
 const f = (x: t.String) => x;
-
-// compiles to
-const f = x => {
-  t.assert(t.String.is(x), ...);
-
-  return x;
-};
 ```
 
 **Classes**
@@ -254,20 +184,6 @@ const f = x => {
 class A {
   foo(x: t.String): t.String {
     return x;
-  }
-}
-
-// compiles to
-class A {
-  foo(x: t.String): t.String {
-    t.assert(t.String.is(x), ...);
-
-    const ret = function (x) {
-      return x;
-    }(x);
-
-    t.assert(t.String.is(ret));
-    return ret;
   }
 }
 ```

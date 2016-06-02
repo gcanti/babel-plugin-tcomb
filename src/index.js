@@ -336,9 +336,15 @@ export default function ({ types: t }) {
         }
       },
 
-      ImportDeclaration({ node }) {
+      ImportDeclaration(path) {
+        const { node } = path;
         if (!tcombLocalName && tcombLibraries.hasOwnProperty(node.source.value)) {
           tcombLocalName = getTcombLocalNameFromImports(node);
+        }
+        if (node.importKind === 'type') {
+          path.replaceWith(
+            t.importDeclaration(node.specifiers, node.source)
+          );
         }
       },
 

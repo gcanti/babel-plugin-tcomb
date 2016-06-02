@@ -11,3 +11,5 @@ type T6 = ?string;
 type T7 = [string, number];
 type T8 = {[key: string]: number};
 type T9 = string & number;
+type T10 = 'a' | 'b';
+type T11 = 'a' | number;

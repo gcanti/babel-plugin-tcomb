@@ -56,7 +56,7 @@ export default function ({ types: t }) {
   }
 
   function addName(args, name) {
-    if (name) {
+    if (typeof name === 'object') {
       args.push(name);
     }
     return args;
@@ -84,9 +84,20 @@ export default function ({ types: t }) {
   }
 
   function getUnion(nodes, name) {
+    // handle enums
+    if (nodes.every(n => n.type === 'StringLiteralTypeAnnotation')) {
+      return getEnums(nodes.map(n => n.value), name);
+    }
     return t.callExpression(
       t.memberExpression(tcombLocalName, t.identifier('union')),
       addName([t.arrayExpression(nodes.map(getType))], name)
+    );
+  }
+
+  function getEnums(enums, name) {
+    return t.callExpression(
+      t.memberExpression(t.memberExpression(tcombLocalName, t.identifier('enums')), t.identifier('of')),
+      addName([t.arrayExpression(enums.map(e => t.stringLiteral(e)))], name)
     );
   }
 
@@ -210,6 +221,9 @@ export default function ({ types: t }) {
       case 'AnyTypeAnnotation' :
       case 'MixedTypeAnnotation' :
         return getAny();
+
+      case 'StringLiteralTypeAnnotation' :
+        return getEnums([annotation.value], name)
 
       default :
         throw new SyntaxError(`Unsupported type annotation: ${annotation.type}`);

@@ -18,7 +18,7 @@ describe("emit type checks", () => {
     if ((caseName in skipTests)) {
       return;
     }
-    if (!(caseName in { 'export-type': 1 })) {
+    if (!(caseName in { 'type-alias': 1 })) {
       // return;
     }
     it(`should ${caseName.split("-").join(" ")}`, () => {

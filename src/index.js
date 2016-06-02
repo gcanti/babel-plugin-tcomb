@@ -122,8 +122,8 @@ export default function ({ types: t }) {
     )
   }
 
-  function getInterface(annotation, name) {
-    const props = annotation.properties
+  function getObjectExpression(properties) {
+    const props = properties
       .map(prop => {
         const name = t.identifier(prop.key.name)
         let type = getType(prop.value)
@@ -132,9 +132,13 @@ export default function ({ types: t }) {
         }
         return t.objectProperty(name, type)
       })
+    return t.objectExpression(props)
+  }
+
+  function getInterface(annotation, name) {
     return t.callExpression(
       t.memberExpression(tcombLocalName, t.identifier('inter')),
-      addName([t.objectExpression(props)], name)
+      addName([getObjectExpression(annotation.properties)], name)
     )
   }
 
@@ -384,6 +388,39 @@ export default function ({ types: t }) {
             )
           ])
         )
+      },
+
+      InterfaceDeclaration(path) {
+        const { node } = path
+        ensureTcombLocalName()
+        const name = t.stringLiteral(node.id.name)
+        if (node.extends.length === 0) {
+          path.replaceWith(
+            t.variableDeclaration('const', [
+              t.variableDeclarator(
+                node.id,
+                getType(node.body, name)
+              )
+            ])
+          )
+        }
+        else {
+          // handle extends
+          path.replaceWith(
+            t.variableDeclaration('const', [
+              t.variableDeclarator(
+                node.id,
+                t.callExpression(
+                  t.memberExpression(t.memberExpression(tcombLocalName, t.identifier('inter')), t.identifier('extend')),
+                  [
+                    t.arrayExpression(node.extends.map(inter => inter.id).concat(getObjectExpression(node.body.properties))),
+                    name
+                  ]
+                )
+              )
+            ])
+          )
+        }
       },
 
       Function(path, state) {

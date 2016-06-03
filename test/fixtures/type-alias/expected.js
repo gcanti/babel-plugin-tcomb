@@ -13,3 +13,8 @@ const T8 = t.dict(t.String, t.Number, 'T8');
 const T9 = t.intersection([t.String, t.Number], 'T9');
 const T10 = t.enums.of(['a', 'b'], 'T10');
 const T11 = t.union([t.enums.of(['a']), t.Number], 'T11');
+const T12 = t.union([t.refinement(t.Number, function (n) {
+  return n === 1;
+}), t.refinement(t.Number, function (n) {
+  return n === 2;
+})], 'T12');

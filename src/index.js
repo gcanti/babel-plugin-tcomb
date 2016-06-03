@@ -170,6 +170,25 @@ export default function ({ types: t }) {
     return t.memberExpression(tcombLocalName, t.identifier('Any'))
   }
 
+  function getNumericLiteralType(value) {
+    const n = t.identifier('n')
+    return t.callExpression(
+      t.memberExpression(tcombLocalName, t.identifier('refinement')),
+      [
+        getNumberType(),
+        t.functionExpression(null, [n], t.blockStatement([
+          t.returnStatement(
+            t.binaryExpression(
+              '===',
+              n,
+              t.numericLiteral(value)
+            )
+          )
+        ]))
+      ]
+    )
+  }
+
   function getType(annotation, name) {
     switch (annotation.type) {
 
@@ -232,6 +251,9 @@ export default function ({ types: t }) {
 
       case 'StringLiteralTypeAnnotation' :
         return getEnumsCombinator([annotation.value], name)
+
+      case 'NumericLiteralTypeAnnotation' :
+        return getNumericLiteralType(annotation.value, name)
 
       default :
         throw new SyntaxError(`Unsupported type annotation: ${annotation.type}`)

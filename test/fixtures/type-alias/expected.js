@@ -1,6 +1,6 @@
 import t from 'tcomb';
 
-const T1 = t.inter({
+const T1 = t.interface({
   name: t.String
 }, 'T1');
 const T2 = t.Number;

@@ -5,9 +5,9 @@ function foo(a?: string) {
 }
 
 function bar(a: { b?: string }) {
-  t.assert(t.is(a, t.inter({
+  t.assert(t.is(a, t.interface({
     b: t.maybe(t.String)
-  })), 'Invalid argument a (expected a ' + t.getTypeName(t.inter({
+  })), 'Invalid argument a (expected a ' + t.getTypeName(t.interface({
     b: t.maybe(t.String)
   })) + ')');
 }

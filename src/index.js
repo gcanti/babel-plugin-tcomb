@@ -6,6 +6,8 @@ const tcombLibraries = {
   'redux-tcomb': 1
 }
 
+const INTERFACE_NAME = 'interface'
+
 export default function ({ types: t }) {
 
   let tcombLocalName = null
@@ -29,16 +31,17 @@ export default function ({ types: t }) {
     }
   }
 
+  function isObjectPattern(node) {
+    return node.type === 'ObjectPattern'
+  }
+
   function getTcombLocalNameFromRequires(node) {
     const importName = node.init.arguments[0].value
 
-    if (importName === 'tcomb' && node.id.type === 'Identifier') {
+    if (importName === 'tcomb') {
       return t.identifier(node.id.name)
     }
-    if (node.id.type === 'Identifier') {
-      return t.identifier(node.id.name + '.t')
-    }
-    if (node.id.type == 'ObjectPattern') {
+    if (isObjectPattern(node.id)) {
       for (let i = 0, len = node.id.properties.length; i < len; i++) {
         const property = node.id.properties[i]
         if (property.key.name === 't') {
@@ -46,6 +49,7 @@ export default function ({ types: t }) {
         }
       }
     }
+    return t.identifier(node.id.name + '.t')
   }
 
   function getExpressionFromGenericTypeAnnotation(id) {
@@ -55,70 +59,66 @@ export default function ({ types: t }) {
     return t.identifier(id.name)
   }
 
-  function addName(args, name) {
+  function addTypeName(args, name) {
     if (typeof name === 'object') {
       args.push(name)
     }
     return args
   }
 
-  function getList(node, name) {
+  function getListCombinator(type, name) {
     return t.callExpression(
       t.memberExpression(tcombLocalName, t.identifier('list')),
-      addName([getType(node)], name)
+      addTypeName([type], name)
     )
   }
 
-  function getMaybe(type, name) {
+  function getMaybeCombinator(type, name) {
     return t.callExpression(
       t.memberExpression(tcombLocalName, t.identifier('maybe')),
-      addName([type], name)
+      addTypeName([type], name)
     )
   }
 
-  function getTuple(nodes, name) {
+  function getTupleCombinator(types, name) {
     return t.callExpression(
       t.memberExpression(tcombLocalName, t.identifier('tuple')),
-      addName([t.arrayExpression(nodes.map(getType))], name)
+      addTypeName([t.arrayExpression(types)], name)
     )
   }
 
-  function getUnion(nodes, name) {
-    // handle enums
-    if (nodes.every(n => n.type === 'StringLiteralTypeAnnotation')) {
-      return getEnums(nodes.map(n => n.value), name)
-    }
+  function getUnionCombinator(types, name) {
     return t.callExpression(
       t.memberExpression(tcombLocalName, t.identifier('union')),
-      addName([t.arrayExpression(nodes.map(getType))], name)
+      addTypeName([t.arrayExpression(types)], name)
     )
   }
 
-  function getEnums(enums, name) {
+  function getEnumsCombinator(enums, name) {
     return t.callExpression(
       t.memberExpression(t.memberExpression(tcombLocalName, t.identifier('enums')), t.identifier('of')),
-      addName([t.arrayExpression(enums.map(e => t.stringLiteral(e)))], name)
+      addTypeName([t.arrayExpression(enums.map(e => t.stringLiteral(e)))], name)
     )
   }
 
-  function getDict(key, value, name) {
+  function getDictCombinator(domain, codomain, name) {
     return t.callExpression(
       t.memberExpression(tcombLocalName, t.identifier('dict')),
-      addName([getType(key), getType(value)], name)
+      addTypeName([domain, codomain], name)
     )
   }
 
-  function getIntersection(nodes, name) {
+  function getIntersectionCombinator(types, name) {
     return t.callExpression(
       t.memberExpression(tcombLocalName, t.identifier('intersection')),
-      addName([t.arrayExpression(nodes.map(getType))], name)
+      addTypeName([t.arrayExpression(types)], name)
     )
   }
 
-  function getFunc(domain, codomain, name) {
+  function getFuncCombinator(domain, codomain, name) {
     return t.callExpression(
       t.memberExpression(tcombLocalName, t.identifier('func')),
-      addName([t.arrayExpression(domain.map(getType)), getType(codomain)], name)
+      addTypeName([t.arrayExpression(domain), codomain], name)
     )
   }
 
@@ -128,17 +128,17 @@ export default function ({ types: t }) {
         const name = t.identifier(prop.key.name)
         let type = getType(prop.value)
         if (prop.optional) {
-          type = getMaybe(type)
+          type = getMaybeCombinator(type)
         }
         return t.objectProperty(name, type)
       })
     return t.objectExpression(props)
   }
 
-  function getInterface(annotation, name) {
+  function getInterfaceCombinator(annotation, name) {
     return t.callExpression(
-      t.memberExpression(tcombLocalName, t.identifier('inter')),
-      addName([getObjectExpression(annotation.properties)], name)
+      t.memberExpression(tcombLocalName, t.identifier(INTERFACE_NAME)),
+      addTypeName([getObjectExpression(annotation.properties)], name)
     )
   }
 
@@ -146,27 +146,27 @@ export default function ({ types: t }) {
   // Flow types
   //
 
-  function getNumber() {
+  function getNumberType() {
     return t.memberExpression(tcombLocalName, t.identifier('Number'))
   }
 
-  function getString() {
+  function getStringType() {
     return t.memberExpression(tcombLocalName, t.identifier('String'))
   }
 
-  function getBoolean() {
+  function getBooleanType() {
     return t.memberExpression(tcombLocalName, t.identifier('Boolean'))
   }
 
-  function getVoid() {
+  function getVoidType() {
     return t.memberExpression(tcombLocalName, t.identifier('Nil'))
   }
 
-  function getNull() {
+  function getNullType() {
     return t.memberExpression(tcombLocalName, t.identifier('Nil'))
   }
 
-  function getAny() {
+  function getAnyType() {
     return t.memberExpression(tcombLocalName, t.identifier('Any'))
   }
 
@@ -179,55 +179,59 @@ export default function ({ types: t }) {
             // TODO(giu) what's this?
             throw new SyntaxError(`Unsupported Array type annotation`)
           }
-          return getList(annotation.typeParameters.params[0], name)
+          return getListCombinator(getType(annotation.typeParameters.params[0]), name)
         }
         return getExpressionFromGenericTypeAnnotation(annotation.id)
 
       case 'ArrayTypeAnnotation' :
-        return getList(annotation.elementType, name)
+        return getListCombinator(getType(annotation.elementType), name)
 
       case 'NullableTypeAnnotation' :
-        return getMaybe(getType(annotation.typeAnnotation), name)
+        return getMaybeCombinator(getType(annotation.typeAnnotation), name)
 
       case 'TupleTypeAnnotation' :
-        return getTuple(annotation.types, name)
+        return getTupleCombinator(annotation.types.map(getType), name)
 
       case 'UnionTypeAnnotation' :
-        return getUnion(annotation.types, name)
+        // handle enums
+        if (annotation.types.every(n => n.type === 'StringLiteralTypeAnnotation')) {
+          return getEnumsCombinator(annotation.types.map(n => n.value), name)
+        }
+        return getUnionCombinator(annotation.types.map(getType), name)
 
       case 'ObjectTypeAnnotation' :
         if (annotation.indexers.length === 1) {
-          return getDict(annotation.indexers[0].key, annotation.indexers[0].value, name)
+          return getDictCombinator(getType(annotation.indexers[0].key), getType(annotation.indexers[0].value), name)
         }
-        return getInterface(annotation, name)
+        return getInterfaceCombinator(annotation, name)
 
       case 'IntersectionTypeAnnotation' :
-        return getIntersection(annotation.types, name)
+        return getIntersectionCombinator(annotation.types.map(getType), name)
 
       case 'FunctionTypeAnnotation' :
-        return getFunc(annotation.params.map((param) => param.typeAnnotation), annotation.returnType, name)
+        return getFuncCombinator(annotation.params.map((param) => getType(param.typeAnnotation)), getType(annotation.returnType), name)
 
       case 'NumberTypeAnnotation' :
-        return getNumber()
+        return getNumberType()
 
       case 'StringTypeAnnotation' :
-        return getString()
+        return getStringType()
 
       case 'BooleanTypeAnnotation' :
-        return getBoolean()
+        return getBooleanType()
 
       case 'VoidTypeAnnotation' :
-        return getVoid()
+        return getVoidType()
 
       case 'NullLiteralTypeAnnotation' :
-        return getNull()
+        return getNullType()
 
       case 'AnyTypeAnnotation' :
       case 'MixedTypeAnnotation' :
-        return getAny()
+        return getAnyType()
 
       case 'StringLiteralTypeAnnotation' :
-        return getEnums([annotation.value], name)
+        return getEnumsCombinator([annotation.value], name)
 
       default :
         throw new SyntaxError(`Unsupported type annotation: ${annotation.type}`)
@@ -258,7 +262,7 @@ export default function ({ types: t }) {
   function getAssert({ name, optional, typeAnnotation }) {
     let type = getType(typeAnnotation)
     if (optional) {
-      type = getMaybe(type)
+      type = getMaybeCombinator(type)
     }
     return getAssertForRequiredType({ id: t.identifier(name), type })
   }
@@ -285,7 +289,7 @@ export default function ({ types: t }) {
       }
       else if (param.typeAnnotation) {
         params.push({
-          name: param.type === 'ObjectPattern' ? 'arguments[' + i + ']' : param.name,
+          name: isObjectPattern(param) ? 'arguments[' + i + ']' : param.name,
           optional: param.optional,
           typeAnnotation: param.typeAnnotation.typeAnnotation
         })
@@ -301,7 +305,7 @@ export default function ({ types: t }) {
 
   function getWrappedFunctionReturnWithTypeCheck(node) {
     const params = node.params.map(param => {
-      if (param.type === 'ObjectPattern') {
+      if (isObjectPattern(param)) {
         return param
       }
       else if (param.type === 'AssignmentPattern') {
@@ -310,7 +314,7 @@ export default function ({ types: t }) {
       return t.identifier(param.name)
     })
     const callParams = params.map(param => {
-      if (param.type === 'ObjectPattern') {
+      if (isObjectPattern(param)) {
         return t.objectExpression(param.properties)
       }
       return param
@@ -337,6 +341,42 @@ export default function ({ types: t }) {
       assert,
       t.returnStatement(id)
     ]
+  }
+
+  function getTypeAliasDefinition(node) {
+    return t.variableDeclaration('const', [
+      t.variableDeclarator(
+        node.id,
+        getType(node.right, t.stringLiteral(node.id.name))
+      )
+    ])
+  }
+
+  function getInterfaceDefinition(node) {
+    const name = t.stringLiteral(node.id.name)
+    if (node.extends.length === 0) {
+      return t.variableDeclaration('const', [
+        t.variableDeclarator(
+          node.id,
+          getType(node.body, name)
+        )
+      ])
+    }
+    else {
+      // handle extends
+      return t.variableDeclaration('const', [
+        t.variableDeclarator(
+          node.id,
+          t.callExpression(
+            t.memberExpression(t.memberExpression(tcombLocalName, t.identifier(INTERFACE_NAME)), t.identifier('extend')),
+            [
+              t.arrayExpression(node.extends.map(inter => inter.id).concat(getObjectExpression(node.body.properties))),
+              name
+            ]
+          )
+        )
+      ])
+    }
   }
 
   //
@@ -378,49 +418,13 @@ export default function ({ types: t }) {
       },
 
       TypeAlias(path) {
-        const { node } = path
         ensureTcombLocalName()
-        path.replaceWith(
-          t.variableDeclaration('const', [
-            t.variableDeclarator(
-              node.id,
-              getType(node.right, t.stringLiteral(node.id.name))
-            )
-          ])
-        )
+        path.replaceWith(getTypeAliasDefinition(path.node))
       },
 
       InterfaceDeclaration(path) {
-        const { node } = path
         ensureTcombLocalName()
-        const name = t.stringLiteral(node.id.name)
-        if (node.extends.length === 0) {
-          path.replaceWith(
-            t.variableDeclaration('const', [
-              t.variableDeclarator(
-                node.id,
-                getType(node.body, name)
-              )
-            ])
-          )
-        }
-        else {
-          // handle extends
-          path.replaceWith(
-            t.variableDeclaration('const', [
-              t.variableDeclarator(
-                node.id,
-                t.callExpression(
-                  t.memberExpression(t.memberExpression(tcombLocalName, t.identifier('inter')), t.identifier('extend')),
-                  [
-                    t.arrayExpression(node.extends.map(inter => inter.id).concat(getObjectExpression(node.body.properties))),
-                    name
-                  ]
-                )
-              )
-            ])
-          )
-        }
+        path.replaceWith(getInterfaceDefinition(path.node))
       },
 
       Function(path, state) {

@@ -2,7 +2,7 @@ import tc from 'tcomb';
 import { propTypes } from 'tcomb-react';
 
 function foo(x: ?tc.String) {
-  tc.assert(tc.is(x, tc.maybe(tc.String)), 'Invalid argument x (expected a ' + tc.getTypeName(tc.maybe(tc.String)) + ')');
+  _assert(x, tc.maybe(tc.String), 'x');
 
   return x || 'Empty';
 }

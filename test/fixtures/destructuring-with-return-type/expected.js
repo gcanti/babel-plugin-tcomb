@@ -4,6 +4,7 @@ function foo({ x: { y: foo, z: { bar } }, a: { bob } }): t.String {
     return bar;
   }.call(this, { x: { y: foo, z: { bar } }, a: { bob } });
 
-  t.assert(t.is(ret, t.String), 'Invalid argument ret (expected a ' + t.getTypeName(t.String) + ')');
+  _assert(ret, t.String, 'return value');
+
   return ret;
 }

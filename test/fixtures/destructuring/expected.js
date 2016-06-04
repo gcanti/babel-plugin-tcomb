@@ -1,11 +1,9 @@
 import t from 'tcomb';
 
 function foo({ x }: { x: t.String }) {
-  t.assert(t.is(arguments[0], t.interface({
+  _assert(arguments[0], t.interface({
     x: t.String
-  })), 'Invalid argument arguments[0] (expected a ' + t.getTypeName(t.interface({
-    x: t.String
-  })) + ')');
+  }), 'arguments[0]');
 
   return bar;
 }
@@ -15,6 +13,7 @@ function bar({ a } = {}): t.String {
     return x;
   }.call(this, { a });
 
-  t.assert(t.is(ret, t.String), 'Invalid argument ret (expected a ' + t.getTypeName(t.String) + ')');
+  _assert(ret, t.String, 'return value');
+
   return ret;
 }

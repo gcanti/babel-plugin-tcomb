@@ -8,20 +8,47 @@ const tcombLibraries = {
 
 const INTERFACE_NAME = 'interface'
 
-export default function ({ types: t }) {
+export default function ({ types: t, template }) {
 
-  let tcombLocalName = null
+  let tcombExpression = null
+  let assertHelperName = null
 
-  function ensureTcombLocalName() {
-    if (!tcombLocalName) {
-      tcombLocalName = t.callExpression(
+  function getExpression (node) {
+    return t.isExpressionStatement(node) ? node.expression : node
+  }
+
+  function expression (input) {
+    const fn = template(input)
+    return function (args) {
+      const node = fn(args)
+      return getExpression(node)
+    }
+  }
+
+  const assertHelper = expression(`
+    function assert(x, type, name) {
+      if (tcomb.isType(type)) {
+        type(x, [name + ': ' + tcomb.getTypeName(type)]);
+        if (type.meta.kind !== 'struct') {
+          return;
+        }
+      }
+      if (!(x instanceof type)) {
+        tcomb.fail('Invalid value ' + tcomb.stringify(x) + ' supplied to ' + name + ' (expected a ' + tcomb.getTypeName(type) + ')');
+      }
+    }
+  `)
+
+  function ensureTcombExpression() {
+    if (!tcombExpression) {
+      tcombExpression = t.callExpression(
         t.identifier('require'),
         [t.StringLiteral('tcomb')]
       )
     }
   }
 
-  function getTcombLocalNameFromImports(node) {
+  function getTcombExpressionFromImports(node) {
     for (let i = 0, len = node.specifiers.length; i < len; i++) {
       const specifier = node.specifiers[i]
       const found = ( specifier.type === 'ImportSpecifier' && specifier.imported.name === 't' ) || specifier.type === 'ImportDefaultSpecifier'
@@ -35,7 +62,7 @@ export default function ({ types: t }) {
     return node.type === 'ObjectPattern'
   }
 
-  function getTcombLocalNameFromRequires(node) {
+  function getTcombExpressionFromRequires(node) {
     const importName = node.init.arguments[0].value
 
     if (importName === 'tcomb') {
@@ -68,56 +95,56 @@ export default function ({ types: t }) {
 
   function getListCombinator(type, name) {
     return t.callExpression(
-      t.memberExpression(tcombLocalName, t.identifier('list')),
+      t.memberExpression(tcombExpression, t.identifier('list')),
       addTypeName([type], name)
     )
   }
 
   function getMaybeCombinator(type, name) {
     return t.callExpression(
-      t.memberExpression(tcombLocalName, t.identifier('maybe')),
+      t.memberExpression(tcombExpression, t.identifier('maybe')),
       addTypeName([type], name)
     )
   }
 
   function getTupleCombinator(types, name) {
     return t.callExpression(
-      t.memberExpression(tcombLocalName, t.identifier('tuple')),
+      t.memberExpression(tcombExpression, t.identifier('tuple')),
       addTypeName([t.arrayExpression(types)], name)
     )
   }
 
   function getUnionCombinator(types, name) {
     return t.callExpression(
-      t.memberExpression(tcombLocalName, t.identifier('union')),
+      t.memberExpression(tcombExpression, t.identifier('union')),
       addTypeName([t.arrayExpression(types)], name)
     )
   }
 
   function getEnumsCombinator(enums, name) {
     return t.callExpression(
-      t.memberExpression(t.memberExpression(tcombLocalName, t.identifier('enums')), t.identifier('of')),
+      t.memberExpression(t.memberExpression(tcombExpression, t.identifier('enums')), t.identifier('of')),
       addTypeName([t.arrayExpression(enums.map(e => t.stringLiteral(e)))], name)
     )
   }
 
   function getDictCombinator(domain, codomain, name) {
     return t.callExpression(
-      t.memberExpression(tcombLocalName, t.identifier('dict')),
+      t.memberExpression(tcombExpression, t.identifier('dict')),
       addTypeName([domain, codomain], name)
     )
   }
 
   function getIntersectionCombinator(types, name) {
     return t.callExpression(
-      t.memberExpression(tcombLocalName, t.identifier('intersection')),
+      t.memberExpression(tcombExpression, t.identifier('intersection')),
       addTypeName([t.arrayExpression(types)], name)
     )
   }
 
   function getFuncCombinator(domain, codomain, name) {
     return t.callExpression(
-      t.memberExpression(tcombLocalName, t.identifier('func')),
+      t.memberExpression(tcombExpression, t.identifier('func')),
       addTypeName([t.arrayExpression(domain), codomain], name)
     )
   }
@@ -137,7 +164,7 @@ export default function ({ types: t }) {
 
   function getInterfaceCombinator(annotation, name) {
     return t.callExpression(
-      t.memberExpression(tcombLocalName, t.identifier(INTERFACE_NAME)),
+      t.memberExpression(tcombExpression, t.identifier(INTERFACE_NAME)),
       addTypeName([getObjectExpression(annotation.properties)], name)
     )
   }
@@ -147,33 +174,33 @@ export default function ({ types: t }) {
   //
 
   function getNumberType() {
-    return t.memberExpression(tcombLocalName, t.identifier('Number'))
+    return t.memberExpression(tcombExpression, t.identifier('Number'))
   }
 
   function getStringType() {
-    return t.memberExpression(tcombLocalName, t.identifier('String'))
+    return t.memberExpression(tcombExpression, t.identifier('String'))
   }
 
   function getBooleanType() {
-    return t.memberExpression(tcombLocalName, t.identifier('Boolean'))
+    return t.memberExpression(tcombExpression, t.identifier('Boolean'))
   }
 
   function getVoidType() {
-    return t.memberExpression(tcombLocalName, t.identifier('Nil'))
+    return t.memberExpression(tcombExpression, t.identifier('Nil'))
   }
 
   function getNullType() {
-    return t.memberExpression(tcombLocalName, t.identifier('Nil'))
+    return t.memberExpression(tcombExpression, t.identifier('Nil'))
   }
 
   function getAnyType() {
-    return t.memberExpression(tcombLocalName, t.identifier('Any'))
+    return t.memberExpression(tcombExpression, t.identifier('Any'))
   }
 
   function getNumericLiteralType(value) {
     const n = t.identifier('n')
     return t.callExpression(
-      t.memberExpression(tcombLocalName, t.identifier('refinement')),
+      t.memberExpression(tcombExpression, t.identifier('refinement')),
       [
         getNumberType(),
         t.functionExpression(null, [n], t.blockStatement([
@@ -260,33 +287,16 @@ export default function ({ types: t }) {
     }
   }
 
-  function getAssertForRequiredType({ id, type }) {
-    const guard = t.callExpression(
-      t.memberExpression(tcombLocalName, t.identifier('is')),
-      [id, type]
-    )
-    const message = t.binaryExpression(
-      '+',
-      t.binaryExpression(
-        '+',
-        t.stringLiteral('Invalid argument ' + id.name + ' (expected a '),
-        t.callExpression(t.memberExpression(tcombLocalName, t.identifier('getTypeName')), [type])
-      ),
-      t.stringLiteral(')')
-    )
-    const assert = t.callExpression(
-      t.memberExpression(tcombLocalName, t.identifier('assert')),
-      [guard, message]
-    )
-    return t.expressionStatement(assert)
-  }
-
-  function getAssert({ name, optional, typeAnnotation }) {
+  function getAssert({ id, optional, typeAnnotation, name }) {
     let type = getType(typeAnnotation)
     if (optional) {
       type = getMaybeCombinator(type)
     }
-    return getAssertForRequiredType({ id: t.identifier(name), type })
+    name = name || t.stringLiteral(id.name)
+    return t.expressionStatement(t.callExpression(
+      assertHelperName,
+      [id, type, name]
+    ))
   }
 
   function getFunctionArgumentCheckExpressions(node) {
@@ -296,14 +306,14 @@ export default function ({ types: t }) {
       if (param.type === 'AssignmentPattern') {
         if (param.left.typeAnnotation) {
           params.push({
-            name: param.left.name,
+            id: t.identifier(param.left.name),
             optional: param.optional,
             typeAnnotation: param.left.typeAnnotation.typeAnnotation
           })
         }
         else if (param.typeAnnotation) {
           params.push({
-            name: param.left.name,
+            id: t.identifier(param.left.name),
             optional: param.optional,
             typeAnnotation: param.typeAnnotation.typeAnnotation
           })
@@ -311,7 +321,7 @@ export default function ({ types: t }) {
       }
       else if (param.typeAnnotation) {
         params.push({
-          name: isObjectPattern(param) ? 'arguments[' + i + ']' : param.name,
+          id: t.identifier(isObjectPattern(param) ? 'arguments[' + i + ']' : param.name),
           optional: param.optional,
           typeAnnotation: param.typeAnnotation.typeAnnotation
         })
@@ -319,7 +329,7 @@ export default function ({ types: t }) {
     })
 
     if (params.length > 0) {
-      ensureTcombLocalName()
+      ensureTcombExpression()
     }
 
     return params.map(getAssert)
@@ -342,12 +352,12 @@ export default function ({ types: t }) {
       return param
     })
 
-    const name = 'ret'
-    const id = t.identifier(name)
+    const id = t.identifier('ret')
 
     const assert = getAssert({
-      name,
-      typeAnnotation: node.returnType.typeAnnotation
+      id,
+      typeAnnotation: node.returnType.typeAnnotation,
+      name: t.stringLiteral('return value')
     })
 
     return [
@@ -390,7 +400,7 @@ export default function ({ types: t }) {
         t.variableDeclarator(
           node.id,
           t.callExpression(
-            t.memberExpression(t.memberExpression(tcombLocalName, t.identifier(INTERFACE_NAME)), t.identifier('extend')),
+            t.memberExpression(t.memberExpression(tcombExpression, t.identifier(INTERFACE_NAME)), t.identifier('extend')),
             [
               t.arrayExpression(node.extends.map(inter => inter.id).concat(getObjectExpression(node.body.properties))),
               name
@@ -408,17 +418,28 @@ export default function ({ types: t }) {
   return {
     visitor: {
       Program: {
-        enter() {
+        enter(path) {
           // Ensure we reset the import between each file so that our guard
           // of the import works correctly.
-          tcombLocalName = null
+          tcombExpression = null
+          assertHelperName = path.scope.generateUidIdentifier('assert')
+        },
+        exit(path, state) {
+          if (state.opts['skipHelpers'] || state.opts['skipAsserts']) {
+            return
+          }
+          ensureTcombExpression()
+          path.node.body.unshift(assertHelper({
+            assert: assertHelperName,
+            tcomb: tcombExpression
+          }))
         }
       },
 
       ImportDeclaration(path) {
         const { node } = path
-        if (!tcombLocalName && tcombLibraries.hasOwnProperty(node.source.value)) {
-          tcombLocalName = getTcombLocalNameFromImports(node)
+        if (!tcombExpression && tcombLibraries.hasOwnProperty(node.source.value)) {
+          tcombExpression = getTcombExpressionFromImports(node)
         }
         if (node.importKind === 'type') {
           path.replaceWith(
@@ -435,22 +456,22 @@ export default function ({ types: t }) {
             node.init.arguments.length > 0 &&
             node.init.arguments[0].type === 'StringLiteral' &&
             tcombLibraries.hasOwnProperty(node.init.arguments[0].value)) {
-          tcombLocalName = getTcombLocalNameFromRequires(node)
+          tcombExpression = getTcombExpressionFromRequires(node)
         }
       },
 
       TypeAlias(path) {
-        ensureTcombLocalName()
+        ensureTcombExpression()
         path.replaceWith(getTypeAliasDefinition(path.node))
       },
 
       InterfaceDeclaration(path) {
-        ensureTcombLocalName()
+        ensureTcombExpression()
         path.replaceWith(getInterfaceDefinition(path.node))
       },
 
       Function(path, state) {
-        if (state.opts['strip-asserts']) {
+        if (state.opts['skipAsserts']) {
           return
         }
 
@@ -467,7 +488,7 @@ export default function ({ types: t }) {
           // If we have a return type then we will wrap our entire function
           // body and insert a type check on the returned value.
           if (node.returnType) {
-            ensureTcombLocalName()
+            ensureTcombExpression()
 
             const funcBody = path.get('body')
 

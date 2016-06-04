@@ -1,15 +1,15 @@
 import { Number } from 'tcomb';
 
 function sum(a: Number, b: Number): Number {
-  require('tcomb').assert(require('tcomb').is(a, Number), 'Invalid argument a (expected a ' + require('tcomb').getTypeName(Number) + ')');
+  _assert(a, Number, 'a');
 
-  require('tcomb').assert(require('tcomb').is(b, Number), 'Invalid argument b (expected a ' + require('tcomb').getTypeName(Number) + ')');
+  _assert(b, Number, 'b');
 
   const ret = function (a, b) {
     return a + b;
   }.call(this, a, b);
 
-  require('tcomb').assert(require('tcomb').is(ret, Number), 'Invalid argument ret (expected a ' + require('tcomb').getTypeName(Number) + ')');
+  _assert(ret, Number, 'return value');
 
   return ret;
 }

@@ -1,4 +1,8 @@
 function _assert2(x, type, name) {
+  if (!type) {
+    type = t.Any;
+  }
+
   if (t.isType(type)) {
     type(x, [name + ': ' + t.getTypeName(type)]);
 

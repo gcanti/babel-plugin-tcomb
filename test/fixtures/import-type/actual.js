@@ -1,1 +1,0 @@
-import type {User} from './interfaces'

@@ -6,7 +6,7 @@ const T1 = t.interface({
 const T2 = t.Number;
 const T3 = t.union([t.Number, T1], 'T3');
 const T4 = t.list(t.String, 'T4');
-const T5 = t.func([U], V, 'T5');
+const T5 = t.Function;
 const T6 = t.maybe(t.String, 'T6');
 const T7 = t.tuple([t.String, t.Number], 'T7');
 const T8 = t.dict(t.String, t.Number, 'T8');
@@ -18,3 +18,5 @@ const T12 = t.union([t.refinement(t.Number, function (n) {
 }), t.refinement(t.Number, function (n) {
   return n === 2;
 })], 'T12');
+const T13 = t.refinement(t.Number, isPositive, 'T13');
+const T14 = t.refinement(t.Number, Integer.is, 'T14');

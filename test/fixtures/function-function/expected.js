@@ -1,7 +1,7 @@
 import t from 'tcomb';
 
 function foo(f: (x: t.String) => t.String) {
-  _assert(f, t.func([t.String], t.String), 'f');
+  _assert(f, t.Function, 'f');
 
   return f('a');
 }

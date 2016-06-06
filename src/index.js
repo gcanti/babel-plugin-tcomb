@@ -6,7 +6,9 @@ const tcombLibraries = {
   'redux-tcomb': 1
 }
 
-const INTERFACE_NAME = 'interface'
+const PLUGIN_NAME = 'babel-plugin-tcomb'
+const INTERFACE_COMBINATOR_NAME = 'interface'
+const REFINEMENT_INTERFACE_NAME = '$Refinement'
 
 export default function ({ types: t, template }) {
 
@@ -25,8 +27,12 @@ export default function ({ types: t, template }) {
     }
   }
 
+  // TODO convert to AST to speed up compilation?
   const assertHelper = expression(`
     function assert(x, type, name) {
+      if (!type) {
+        type = tcomb.Any;
+      }
       if (tcomb.isType(type)) {
         type(x, [name + ': ' + tcomb.getTypeName(type)]);
         if (type.meta.kind !== 'struct') {
@@ -79,13 +85,6 @@ export default function ({ types: t, template }) {
     return t.identifier(node.id.name + '.t')
   }
 
-  function getExpressionFromGenericTypeAnnotation(id) {
-    if (id.type === 'QualifiedTypeIdentifier') {
-      return t.memberExpression(getExpressionFromGenericTypeAnnotation(id.qualification), t.identifier(id.id.name))
-    }
-    return t.identifier(id.name)
-  }
-
   function addTypeName(args, name) {
     if (typeof name === 'object') {
       args.push(name)
@@ -135,25 +134,43 @@ export default function ({ types: t, template }) {
     )
   }
 
+  function getRefinementCombinator(type, predicate, name) {
+    return t.callExpression(
+      t.memberExpression(tcombExpression, t.identifier('refinement')),
+      addTypeName([type, predicate], name)
+    )
+  }
+
   function getIntersectionCombinator(types, name) {
-    return t.callExpression(
-      t.memberExpression(tcombExpression, t.identifier('intersection')),
-      addTypeName([t.arrayExpression(types)], name)
-    )
+    const intersections = types.filter(t => !(t._refinementPredicateId))
+    const refinements = types.filter(t => t._refinementPredicateId)
+    let intersection = intersections.length > 1 ?
+      t.callExpression(
+        t.memberExpression(tcombExpression, t.identifier('intersection')),
+        addTypeName([t.arrayExpression(intersections)], name)
+      ) :
+      intersections[0]
+    const len = refinements.length
+    if (len > 0) {
+      for (let i = 0; i < len; i++) {
+        intersection = getRefinementCombinator(intersection, refinements[i]._refinementPredicateId, name)
+      }
+    }
+    return intersection
   }
 
-  function getFuncCombinator(domain, codomain, name) {
-    return t.callExpression(
-      t.memberExpression(tcombExpression, t.identifier('func')),
-      addTypeName([t.arrayExpression(domain), codomain], name)
-    )
-  }
+  // function getFuncCombinator(domain, codomain, name) {
+  //   return t.callExpression(
+  //     t.memberExpression(tcombExpression, t.identifier('func')),
+  //     addTypeName([t.arrayExpression(domain), codomain], name)
+  //   )
+  // }
 
-  function getObjectExpression(properties) {
+  function getObjectExpression(properties, typeParameters) {
     const props = properties
       .map(prop => {
         const name = t.identifier(prop.key.name)
-        let type = getType(prop.value)
+        let type = getType({ annotation: prop.value, typeParameters })
         if (prop.optional) {
           type = getMaybeCombinator(type)
         }
@@ -162,16 +179,20 @@ export default function ({ types: t, template }) {
     return t.objectExpression(props)
   }
 
-  function getInterfaceCombinator(annotation, name) {
+  function getInterfaceCombinator(props, name) {
     return t.callExpression(
-      t.memberExpression(tcombExpression, t.identifier(INTERFACE_NAME)),
-      addTypeName([getObjectExpression(annotation.properties)], name)
+      t.memberExpression(tcombExpression, t.identifier(INTERFACE_COMBINATOR_NAME)),
+      addTypeName([props], name)
     )
   }
 
   //
   // Flow types
   //
+
+  function getFunctionType() {
+    return t.memberExpression(tcombExpression, t.identifier('Function'))
+  }
 
   function getNumberType() {
     return t.memberExpression(tcombExpression, t.identifier('Number'))
@@ -216,46 +237,76 @@ export default function ({ types: t, template }) {
     )
   }
 
-  function getType(annotation, name) {
+  function getExpressionFromGenericTypeAnnotation(id) {
+    if (id.type === 'QualifiedTypeIdentifier') {
+      return t.memberExpression(getExpressionFromGenericTypeAnnotation(id.qualification), t.identifier(id.id.name))
+    }
+    return id
+  }
+
+  function getRefinementPredicateId(annotation) {
+    if (annotation.typeParameters.params.length !== 1 || !annotation.typeParameters.params[0].argument) {
+      throw new Error(`Invalid refinement definition, example: Refinement<typeof predicate>`)
+    }
+    return getExpressionFromGenericTypeAnnotation(annotation.typeParameters.params[0].argument.id)
+  }
+
+  function getGenericTypeAnnotation({ annotation, name, typeParameters }) {
+    if (annotation.id.name === 'Array') {
+      if (!annotation.typeParameters || annotation.typeParameters.params.length !== 1) {
+        throw new Error(`Unsupported Array type annotation: incorrect number of type parameters (expected 1)`)
+      }
+      const typeParameter = annotation.typeParameters.params[0]
+      return getListCombinator(getType({ annotation: typeParameter, typeParameters }), name)
+    }
+    if (typeParameters && typeParameters.hasOwnProperty(annotation.id.name)) {
+      return getAnyType()
+    }
+    const gta = getExpressionFromGenericTypeAnnotation(annotation.id)
+    if (annotation.id.name === REFINEMENT_INTERFACE_NAME) {
+      gta._refinementPredicateId = getRefinementPredicateId(annotation)
+    }
+    return gta
+  }
+
+  function getType({ annotation, name, typeParameters }) {
     switch (annotation.type) {
 
       case 'GenericTypeAnnotation' :
-        if (annotation.id.name === 'Array') {
-          if (!annotation.typeParameters || annotation.typeParameters.params.length !== 1) {
-            // TODO(giu) what's this?
-            throw new SyntaxError(`Unsupported Array type annotation`)
-          }
-          return getListCombinator(getType(annotation.typeParameters.params[0]), name)
-        }
-        return getExpressionFromGenericTypeAnnotation(annotation.id)
+        return getGenericTypeAnnotation({ annotation, name, typeParameters })
 
       case 'ArrayTypeAnnotation' :
-        return getListCombinator(getType(annotation.elementType), name)
+        return getListCombinator(getType({ annotation: annotation.elementType, typeParameters }), name)
 
       case 'NullableTypeAnnotation' :
-        return getMaybeCombinator(getType(annotation.typeAnnotation), name)
+        return getMaybeCombinator(getType({ annotation: annotation.typeAnnotation, typeParameters }), name)
 
       case 'TupleTypeAnnotation' :
-        return getTupleCombinator(annotation.types.map(getType), name)
+        return getTupleCombinator(annotation.types.map(type => getType({ annotation: type, typeParameters })), name)
 
       case 'UnionTypeAnnotation' :
         // handle enums
         if (annotation.types.every(n => n.type === 'StringLiteralTypeAnnotation')) {
           return getEnumsCombinator(annotation.types.map(n => n.value), name)
         }
-        return getUnionCombinator(annotation.types.map(getType), name)
+        return getUnionCombinator(annotation.types.map(type => getType({ annotation: type, typeParameters })), name)
 
       case 'ObjectTypeAnnotation' :
         if (annotation.indexers.length === 1) {
-          return getDictCombinator(getType(annotation.indexers[0].key), getType(annotation.indexers[0].value), name)
+          return getDictCombinator(
+            getType({ annotation: annotation.indexers[0].key, typeParameters }),
+            getType({ annotation: annotation.indexers[0].value, typeParameters }),
+            name
+          )
         }
-        return getInterfaceCombinator(annotation, name)
+        return getInterfaceCombinator(getObjectExpression(annotation.properties, typeParameters), name)
 
       case 'IntersectionTypeAnnotation' :
-        return getIntersectionCombinator(annotation.types.map(getType), name)
+        return getIntersectionCombinator(annotation.types.map(type => getType({ annotation: type, typeParameters })), name)
 
       case 'FunctionTypeAnnotation' :
-        return getFuncCombinator(annotation.params.map((param) => getType(param.typeAnnotation)), getType(annotation.returnType), name)
+        return getFunctionType()
+        // return getFuncCombinator(annotation.params.map((param) => getType(param.typeAnnotation)), getType(annotation.returnType), name)
 
       case 'NumberTypeAnnotation' :
         return getNumberType()
@@ -283,19 +334,19 @@ export default function ({ types: t, template }) {
         return getNumericLiteralType(annotation.value, name)
 
       default :
-        throw new SyntaxError(`Unsupported type annotation: ${annotation.type}`)
+        throw new Error(`Unsupported type annotation: ${annotation.type}`)
     }
   }
 
-  function getAssert({ id, optional, typeAnnotation, name }) {
-    let type = getType(typeAnnotation)
+  function getAssert({ id, optional, typeAnnotation, argumentName }) {
+    let type = getType({ annotation: typeAnnotation })
     if (optional) {
       type = getMaybeCombinator(type)
     }
-    name = name || t.stringLiteral(id.name)
+    argumentName = argumentName || t.stringLiteral(id.name)
     return t.expressionStatement(t.callExpression(
       assertHelperName,
-      [id, type, name]
+      [id, type, argumentName]
     ))
   }
 
@@ -357,7 +408,7 @@ export default function ({ types: t, template }) {
     const assert = getAssert({
       id,
       typeAnnotation: node.returnType.typeAnnotation,
-      name: t.stringLiteral('return value')
+      argumentName: t.stringLiteral('return value')
     })
 
     return [
@@ -375,39 +426,77 @@ export default function ({ types: t, template }) {
     ]
   }
 
+  function getTypeParameters(node) {
+    const typeParameters = {}
+    if (node.typeParameters) {
+      node.typeParameters.params.forEach(param => typeParameters[param.name] = true)
+    }
+    return typeParameters
+  }
+
   function getTypeAliasDefinition(node) {
+    const typeParameters = getTypeParameters(node)
     return t.variableDeclaration('const', [
       t.variableDeclarator(
         node.id,
-        getType(node.right, t.stringLiteral(node.id.name))
+        getType({
+          annotation: node.right,
+          name: t.stringLiteral(node.id.name),
+          typeParameters
+        })
       )
     ])
   }
 
   function getInterfaceDefinition(node) {
+    const typeParameters = getTypeParameters(node)
     const name = t.stringLiteral(node.id.name)
     if (node.extends.length === 0) {
       return t.variableDeclaration('const', [
         t.variableDeclarator(
           node.id,
-          getType(node.body, name)
+          getType({
+            annotation: node.body,
+            name,
+            typeParameters
+          })
         )
       ])
     }
     else {
       // handle extends
+      let props = getObjectExpression(node.body.properties)
+      const mixins = node.extends.filter(m => m.id.name !== REFINEMENT_INTERFACE_NAME)
+      const refinements = node.extends.filter(m => m.id.name === REFINEMENT_INTERFACE_NAME)
+      const len = refinements.length
+      if (len > 0) {
+        props = getInterfaceCombinator(props)
+        for (let i = 0; i < len; i++) {
+          props = getRefinementCombinator(props, getRefinementPredicateId(refinements[i]))
+        }
+      }
       return t.variableDeclaration('const', [
         t.variableDeclarator(
           node.id,
           t.callExpression(
-            t.memberExpression(t.memberExpression(tcombExpression, t.identifier(INTERFACE_NAME)), t.identifier('extend')),
+            t.memberExpression(t.memberExpression(tcombExpression, t.identifier(INTERFACE_COMBINATOR_NAME)), t.identifier('extend')),
             [
-              t.arrayExpression(node.extends.map(inter => inter.id).concat(getObjectExpression(node.body.properties))),
+              t.arrayExpression(mixins.map(inter => inter.id).concat(props)),
               name
             ]
           )
         )
       ])
+    }
+  }
+
+  function buildCodeFrameError(path, error) {
+    throw path.buildCodeFrameError(`[${PLUGIN_NAME}] ${error.message}`)
+  }
+
+  function preventReservedInterfaceNameUsage(path) {
+    if (path.node.id.name === REFINEMENT_INTERFACE_NAME) {
+      buildCodeFrameError(path, new Error(`${REFINEMENT_INTERFACE_NAME} is a reserved interface name for ${PLUGIN_NAME}`))
     }
   }
 
@@ -417,6 +506,7 @@ export default function ({ types: t, template }) {
 
   return {
     visitor: {
+
       Program: {
         enter(path) {
           // Ensure we reset the import between each file so that our guard
@@ -441,11 +531,23 @@ export default function ({ types: t, template }) {
         if (!tcombExpression && tcombLibraries.hasOwnProperty(node.source.value)) {
           tcombExpression = getTcombExpressionFromImports(node)
         }
-        if (node.importKind === 'type') {
-          path.replaceWith(
-            t.importDeclaration(node.specifiers, node.source)
-          )
-        }
+        // if (node.importKind === 'type') {
+        //   const specifiers = node.specifiers.filter(s => {
+        //     return !(
+        //       s.type === 'ImportSpecifier' &&
+        //       s.imported.name === REFINEMENT_INTERFACE_NAME &&
+        //       s.local.name === REFINEMENT_INTERFACE_NAME
+        //     )
+        //   })
+        //   if (specifiers.length > 0) {
+        //     path.replaceWith(
+        //       t.importDeclaration(specifiers, node.source)
+        //     )
+        //   }
+        //   else {
+        //     path.remove()
+        //   }
+        // }
       },
 
       VariableDeclarator({ node }) {
@@ -461,11 +563,18 @@ export default function ({ types: t, template }) {
       },
 
       TypeAlias(path) {
+        preventReservedInterfaceNameUsage(path)
         ensureTcombExpression()
-        path.replaceWith(getTypeAliasDefinition(path.node))
+        try {
+          path.replaceWith(getTypeAliasDefinition(path.node))
+        }
+        catch (error) {
+          buildCodeFrameError(path, error)
+        }
       },
 
       InterfaceDeclaration(path) {
+        preventReservedInterfaceNameUsage(path)
         ensureTcombExpression()
         path.replaceWith(getInterfaceDefinition(path.node))
       },
@@ -489,10 +598,7 @@ export default function ({ types: t, template }) {
           // body and insert a type check on the returned value.
           if (node.returnType) {
             ensureTcombExpression()
-
-            const funcBody = path.get('body')
-
-            funcBody.replaceWithMultiple(
+            path.get('body').replaceWithMultiple(
               getWrappedFunctionReturnWithTypeCheck(node)
             )
           }
@@ -503,13 +609,8 @@ export default function ({ types: t, template }) {
             node.body.body.unshift(...argumentChecks)
           }
         }
-        catch (e) {
-          if (e instanceof SyntaxError) {
-            throw new Error('[babel-plugin-tcomb] ' + e.message)
-          }
-          else {
-            throw e
-          }
+        catch (error) {
+          buildCodeFrameError(path, error)
         }
       }
     }

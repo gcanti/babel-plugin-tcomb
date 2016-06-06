@@ -11,9 +11,7 @@ function trim(str) {
 
 const skipTests = {
   '.DS_Store': 1,
-  'assert': 1,
-  'type-alias-generics': 1,
-  'interface-generics': 1
+  'assert': 1
 }
 
 const fixturesDir = path.join(__dirname, "fixtures")
@@ -82,7 +80,7 @@ describe("emit asserts for: ", () => {
     if ((caseName in skipTests)) {
       return
     }
-    if (!(caseName in { 'type-alias': 1 })) {
+    if (!(caseName in { 'type-alias-generics': 1 })) {
       // return
     }
     it(`should ${caseName.split("-").join(" ")}`, () => {

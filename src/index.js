@@ -166,11 +166,11 @@ export default function ({ types: t, template }) {
   //   )
   // }
 
-  function getObjectExpression(properties) {
+  function getObjectExpression(properties, typeParameters) {
     const props = properties
       .map(prop => {
         const name = t.identifier(prop.key.name)
-        let type = getType(prop.value)
+        let type = getType({ annotation: prop.value, typeParameters })
         if (prop.optional) {
           type = getMaybeCombinator(type)
         }
@@ -251,13 +251,16 @@ export default function ({ types: t, template }) {
     return getExpressionFromGenericTypeAnnotation(annotation.typeParameters.params[0].argument.id)
   }
 
-  function getGenericTypeAnnotation(annotation, name) {
+  function getGenericTypeAnnotation({ annotation, name, typeParameters }) {
     if (annotation.id.name === 'Array') {
       if (!annotation.typeParameters || annotation.typeParameters.params.length !== 1) {
         throw new Error(`Unsupported Array type annotation: incorrect number of type parameters (expected 1)`)
       }
       const typeParameter = annotation.typeParameters.params[0]
-      return getListCombinator(getType(typeParameter), name)
+      return getListCombinator(getType({ annotation: typeParameter, typeParameters }), name)
+    }
+    if (typeParameters && typeParameters.hasOwnProperty(annotation.id.name)) {
+      return getAnyType()
     }
     const gta = getExpressionFromGenericTypeAnnotation(annotation.id)
     if (annotation.id.name === REFINEMENT_INTERFACE_NAME) {
@@ -266,36 +269,40 @@ export default function ({ types: t, template }) {
     return gta
   }
 
-  function getType(annotation, name) {
+  function getType({ annotation, name, typeParameters }) {
     switch (annotation.type) {
 
       case 'GenericTypeAnnotation' :
-        return getGenericTypeAnnotation(annotation, name)
+        return getGenericTypeAnnotation({ annotation, name, typeParameters })
 
       case 'ArrayTypeAnnotation' :
-        return getListCombinator(getType(annotation.elementType), name)
+        return getListCombinator(getType({ annotation: annotation.elementType, typeParameters }), name)
 
       case 'NullableTypeAnnotation' :
-        return getMaybeCombinator(getType(annotation.typeAnnotation), name)
+        return getMaybeCombinator(getType({ annotation: annotation.typeAnnotation, typeParameters }), name)
 
       case 'TupleTypeAnnotation' :
-        return getTupleCombinator(annotation.types.map(getType), name)
+        return getTupleCombinator(annotation.types.map(type => getType({ annotation: type, typeParameters })), name)
 
       case 'UnionTypeAnnotation' :
         // handle enums
         if (annotation.types.every(n => n.type === 'StringLiteralTypeAnnotation')) {
           return getEnumsCombinator(annotation.types.map(n => n.value), name)
         }
-        return getUnionCombinator(annotation.types.map(getType), name)
+        return getUnionCombinator(annotation.types.map(type => getType({ annotation: type, typeParameters })), name)
 
       case 'ObjectTypeAnnotation' :
         if (annotation.indexers.length === 1) {
-          return getDictCombinator(getType(annotation.indexers[0].key), getType(annotation.indexers[0].value), name)
+          return getDictCombinator(
+            getType({ annotation: annotation.indexers[0].key, typeParameters }),
+            getType({ annotation: annotation.indexers[0].value, typeParameters }),
+            name
+          )
         }
-        return getInterfaceCombinator(getObjectExpression(annotation.properties), name)
+        return getInterfaceCombinator(getObjectExpression(annotation.properties, typeParameters), name)
 
       case 'IntersectionTypeAnnotation' :
-        return getIntersectionCombinator(annotation.types.map(getType), name)
+        return getIntersectionCombinator(annotation.types.map(type => getType({ annotation: type, typeParameters })), name)
 
       case 'FunctionTypeAnnotation' :
         return getFunctionType()
@@ -331,15 +338,15 @@ export default function ({ types: t, template }) {
     }
   }
 
-  function getAssert({ id, optional, typeAnnotation, name }) {
-    let type = getType(typeAnnotation)
+  function getAssert({ id, optional, typeAnnotation, argumentName }) {
+    let type = getType({ annotation: typeAnnotation })
     if (optional) {
       type = getMaybeCombinator(type)
     }
-    name = name || t.stringLiteral(id.name)
+    argumentName = argumentName || t.stringLiteral(id.name)
     return t.expressionStatement(t.callExpression(
       assertHelperName,
-      [id, type, name]
+      [id, type, argumentName]
     ))
   }
 
@@ -401,7 +408,7 @@ export default function ({ types: t, template }) {
     const assert = getAssert({
       id,
       typeAnnotation: node.returnType.typeAnnotation,
-      name: t.stringLiteral('return value')
+      argumentName: t.stringLiteral('return value')
     })
 
     return [
@@ -419,22 +426,40 @@ export default function ({ types: t, template }) {
     ]
   }
 
+  function getTypeParameters(node) {
+    const typeParameters = {}
+    if (node.typeParameters) {
+      node.typeParameters.params.forEach(param => typeParameters[param.name] = true)
+    }
+    return typeParameters
+  }
+
   function getTypeAliasDefinition(node) {
+    const typeParameters = getTypeParameters(node)
     return t.variableDeclaration('const', [
       t.variableDeclarator(
         node.id,
-        getType(node.right, t.stringLiteral(node.id.name))
+        getType({
+          annotation: node.right,
+          name: t.stringLiteral(node.id.name),
+          typeParameters
+        })
       )
     ])
   }
 
   function getInterfaceDefinition(node) {
+    const typeParameters = getTypeParameters(node)
     const name = t.stringLiteral(node.id.name)
     if (node.extends.length === 0) {
       return t.variableDeclaration('const', [
         t.variableDeclarator(
           node.id,
-          getType(node.body, name)
+          getType({
+            annotation: node.body,
+            name,
+            typeParameters
+          })
         )
       ])
     }

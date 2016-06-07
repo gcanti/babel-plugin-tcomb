@@ -1,4 +1,4 @@
 import t from 'tcomb';
-function foo(x = 'foo' : t.String) : t.String {
+function foo(x: t.String = 'foo') : t.String {
   return x;
 }

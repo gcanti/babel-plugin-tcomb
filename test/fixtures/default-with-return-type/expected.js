@@ -1,5 +1,5 @@
 import t from 'tcomb';
-function foo(x = 'foo': t.String): t.String {
+function foo(x = 'foo'): t.String {
   _assert(x, t.String, 'x');
 
   const ret = function (x) {

@@ -353,34 +353,28 @@ export default function ({ types: t, template }) {
     ))
   }
 
-  function getFunctionArgumentCheckExpressions(node) {
-    const params = []
+  function getParam(param, i) {
+    if (param.type === 'AssignmentPattern' && param.left.typeAnnotation) {
+      return getParam(param.left, i)
+    }
+    else if (param.type === 'RestElement') {
+      return {
+        id: param.argument,
+        optional: param.optional,
+        typeAnnotation: param.typeAnnotation.typeAnnotation
+      }
+    }
+    else if (param.typeAnnotation) {
+      return {
+        id: t.identifier(isObjectPattern(param) ? 'arguments[' + i + ']' : param.name),
+        optional: param.optional,
+        typeAnnotation: param.typeAnnotation.typeAnnotation
+      }
+    }
+  }
 
-    node.params.forEach((param, i) => {
-      if (param.type === 'AssignmentPattern') {
-        if (param.left.typeAnnotation) {
-          params.push({
-            id: t.identifier(param.left.name),
-            optional: param.optional,
-            typeAnnotation: param.left.typeAnnotation.typeAnnotation
-          })
-        }
-        else if (param.typeAnnotation) {
-          params.push({
-            id: t.identifier(param.left.name),
-            optional: param.optional,
-            typeAnnotation: param.typeAnnotation.typeAnnotation
-          })
-        }
-      }
-      else if (param.typeAnnotation) {
-        params.push({
-          id: t.identifier(isObjectPattern(param) ? 'arguments[' + i + ']' : param.name),
-          optional: param.optional,
-          typeAnnotation: param.typeAnnotation.typeAnnotation
-        })
-      }
-    })
+  function getFunctionArgumentCheckExpressions(node) {
+    const params = node.params.map(getParam).filter(x => x)
 
     if (params.length > 0) {
       ensureTcombExpression()
@@ -389,16 +383,21 @@ export default function ({ types: t, template }) {
     return params.map(getAssert)
   }
 
+  function getParamName(param) {
+    if (param.type === 'AssignmentPattern') {
+      return getParamName(param.left)
+    }
+    else if (param.type === 'RestElement') {
+      return getParamName(param.argument)
+    }
+    else if (isObjectPattern(param)) {
+      return param
+    }
+    return t.identifier(param.name)
+  }
+
   function getWrappedFunctionReturnWithTypeCheck(node) {
-    const params = node.params.map(param => {
-      if (isObjectPattern(param)) {
-        return param
-      }
-      else if (param.type === 'AssignmentPattern') {
-        return param.left
-      }
-      return t.identifier(param.name)
-    })
+    const params = node.params.map(getParamName)
     const callParams = params.map(param => {
       if (isObjectPattern(param)) {
         return t.objectExpression(param.properties)
@@ -534,23 +533,6 @@ export default function ({ types: t, template }) {
         if (!tcombExpression && tcombLibraries.hasOwnProperty(node.source.value)) {
           tcombExpression = getTcombExpressionFromImports(node)
         }
-        // if (node.importKind === 'type') {
-        //   const specifiers = node.specifiers.filter(s => {
-        //     return !(
-        //       s.type === 'ImportSpecifier' &&
-        //       s.imported.name === REFINEMENT_INTERFACE_NAME &&
-        //       s.local.name === REFINEMENT_INTERFACE_NAME
-        //     )
-        //   })
-        //   if (specifiers.length > 0) {
-        //     path.replaceWith(
-        //       t.importDeclaration(specifiers, node.source)
-        //     )
-        //   }
-        //   else {
-        //     path.remove()
-        //   }
-        // }
       },
 
       VariableDeclarator({ node }) {

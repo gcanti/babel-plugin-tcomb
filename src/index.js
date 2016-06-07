@@ -27,21 +27,17 @@ export default function ({ types: t, template }) {
     }
   }
 
-  // TODO convert to AST to speed up compilation?
   const assertHelper = expression(`
     function assert(x, type, name) {
       if (!type) {
         type = tcomb.Any;
       }
-      if (tcomb.isType(type)) {
+      if (tcomb.isType(type) && type.meta.kind !== 'struct') {
         type(x, [name + ': ' + tcomb.getTypeName(type)]);
-        if (type.meta.kind !== 'struct') {
-          return;
-        }
-      }
-      if (!(x instanceof type)) {
+      } else if (!(x instanceof type)) {
         tcomb.fail('Invalid value ' + tcomb.stringify(x) + ' supplied to ' + name + ' (expected a ' + tcomb.getTypeName(type) + ')');
       }
+      return x;
     }
   `)
 
@@ -338,12 +334,19 @@ export default function ({ types: t, template }) {
     }
   }
 
+  function getArgumentName(id) {
+    if (id.type === 'MemberExpression') {
+      return `${getArgumentName(id.object)}.${id.property.name}`
+    }
+    return id.name
+  }
+
   function getAssert({ id, optional, typeAnnotation, argumentName }) {
     let type = getType({ annotation: typeAnnotation })
     if (optional) {
       type = getMaybeCombinator(type)
     }
-    argumentName = argumentName || t.stringLiteral(id.name)
+    argumentName = argumentName || t.stringLiteral(getArgumentName(id))
     return t.expressionStatement(t.callExpression(
       assertHelperName,
       [id, type, argumentName]
@@ -571,6 +574,14 @@ export default function ({ types: t, template }) {
         catch (error) {
           buildCodeFrameError(path, error)
         }
+      },
+
+      TypeCastExpression(path) {
+        const { node } = path
+        path.replaceWith(getAssert({
+          id: node.expression,
+          typeAnnotation: node.typeAnnotation.typeAnnotation
+        }))
       },
 
       InterfaceDeclaration(path) {

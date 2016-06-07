@@ -3,17 +3,13 @@ function _assert2(x, type, name) {
     type = t.Any;
   }
 
-  if (t.isType(type)) {
+  if (t.isType(type) && type.meta.kind !== 'struct') {
     type(x, [name + ': ' + t.getTypeName(type)]);
-
-    if (type.meta.kind !== 'struct') {
-      return;
-    }
-  }
-
-  if (!(x instanceof type)) {
+  } else if (!(x instanceof type)) {
     t.fail('Invalid value ' + t.stringify(x) + ' supplied to ' + name + ' (expected a ' + t.getTypeName(type) + ')');
   }
+
+  return x;
 }
 
 import t from 'tcomb';

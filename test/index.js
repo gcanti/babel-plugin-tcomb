@@ -14,6 +14,11 @@ const skipTests = {
   'assert': 1
 }
 
+const stripTypes = {
+  'class-generics': 1,
+  'function-generics': 1
+}
+
 const fixturesDir = path.join(__dirname, "fixtures")
 
 describe("_assert helper", () => {
@@ -22,10 +27,10 @@ describe("_assert helper", () => {
         path.join(fixturesDir, "assert/actual.js"), {
           babelrc: false,
           plugins: [
+            "syntax-flow",
             [plugin, {
               skipHelpers: false
-            }],
-            "syntax-flow"
+            }]
           ]
         }
       ).code
@@ -44,7 +49,10 @@ describe("refinements", () => {
       babel.transform(
         source, {
           babelrc: false,
-          plugins: [plugin, "syntax-flow"]
+          plugins: [
+            "syntax-flow",
+            plugin
+          ]
         }
       )
     }, err => {
@@ -63,7 +71,10 @@ describe("refinements", () => {
       babel.transform(
         source, {
           babelrc: false,
-          plugins: [plugin, "syntax-flow"]
+          plugins: [
+            "syntax-flow",
+            plugin
+          ]
         }
       )
     }, err => {
@@ -80,20 +91,24 @@ describe("emit asserts for: ", () => {
     if ((caseName in skipTests)) {
       return
     }
-    if (!(caseName in { 'default-with-return-type': 1 })) {
+    if (!(caseName in { 'class-generics': 1 })) {
       // return
     }
     it(`should ${caseName.split("-").join(" ")}`, () => {
       const fixtureDir = path.join(fixturesDir, caseName)
+      const plugins = [
+        "syntax-flow",
+        [plugin, {
+          skipHelpers: true
+        }]
+      ]
+      if (caseName in stripTypes) {
+        plugins.push('transform-flow-strip-types')
+      }
       const actual = babel.transformFileSync(
         path.join(fixtureDir, "actual.js"), {
           babelrc: false,
-          plugins: [
-            [plugin, {
-              skipHelpers: true
-            }],
-            "syntax-flow"
-          ]
+          plugins
         }
       ).code
       const expected = fs.readFileSync(path.join(fixtureDir, "expected.js")).toString()

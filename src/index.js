@@ -15,18 +15,6 @@ export default function ({ types: t, template }) {
   let tcombExpression = null
   let assertHelperName = null
 
-  function getExpression (node) {
-    return t.isExpressionStatement(node) ? node.expression : node
-  }
-
-  function expression (input) {
-    const fn = template(input)
-    return function (args) {
-      const node = fn(args)
-      return getExpression(node)
-    }
-  }
-
   const assertHelper = expression(`
     function assert(x, type, name) {
       if (!type) {
@@ -40,6 +28,10 @@ export default function ({ types: t, template }) {
       return x;
     }
   `)
+
+  //
+  // import helpers
+  //
 
   function ensureTcombExpression() {
     if (!tcombExpression) {
@@ -60,10 +52,6 @@ export default function ({ types: t, template }) {
     }
   }
 
-  function isObjectPattern(node) {
-    return node.type === 'ObjectPattern'
-  }
-
   function getTcombExpressionFromRequires(node) {
     const importName = node.init.arguments[0].value
 
@@ -81,12 +69,9 @@ export default function ({ types: t, template }) {
     return t.identifier(node.id.name + '.t')
   }
 
-  function addTypeName(args, name) {
-    if (typeof name === 'object') {
-      args.push(name)
-    }
-    return args
-  }
+  //
+  // combinators
+  //
 
   function getListCombinator(type, name) {
     return t.callExpression(
@@ -162,19 +147,6 @@ export default function ({ types: t, template }) {
   //   )
   // }
 
-  function getObjectExpression(properties, typeParameters) {
-    const props = properties
-      .map(prop => {
-        const name = t.identifier(prop.key.name)
-        let type = getType({ annotation: prop.value, typeParameters })
-        if (prop.optional) {
-          type = getMaybeCombinator(type)
-        }
-        return t.objectProperty(name, type)
-      })
-    return t.objectExpression(props)
-  }
-
   function getInterfaceCombinator(props, name) {
     return t.callExpression(
       t.memberExpression(tcombExpression, t.identifier(INTERFACE_COMBINATOR_NAME)),
@@ -231,6 +203,42 @@ export default function ({ types: t, template }) {
         ]))
       ]
     )
+  }
+
+  //
+  // helpers
+  //
+
+  function getExpression (node) {
+    return t.isExpressionStatement(node) ? node.expression : node
+  }
+
+  function expression (input) {
+    const fn = template(input)
+    return function (args) {
+      const node = fn(args)
+      return getExpression(node)
+    }
+  }
+
+  function addTypeName(args, name) {
+    if (typeof name === 'object') {
+      args.push(name)
+    }
+    return args
+  }
+
+  function getObjectExpression(properties, typeParameters) {
+    const props = properties
+      .map(prop => {
+        const name = t.identifier(prop.key.name)
+        let type = getType({ annotation: prop.value, typeParameters })
+        if (prop.optional) {
+          type = getMaybeCombinator(type)
+        }
+        return t.objectProperty(name, type)
+      })
+    return t.objectExpression(props)
   }
 
   function getExpressionFromGenericTypeAnnotation(id) {
@@ -341,8 +349,8 @@ export default function ({ types: t, template }) {
     return id.name
   }
 
-  function getAssert({ id, optional, typeAnnotation, argumentName }) {
-    let type = getType({ annotation: typeAnnotation })
+  function getAssert({ id, optional, typeAnnotation, argumentName }, typeParameters) {
+    let type = getType({ annotation: typeAnnotation, typeParameters })
     if (optional) {
       type = getMaybeCombinator(type)
     }
@@ -351,6 +359,10 @@ export default function ({ types: t, template }) {
       assertHelperName,
       [id, type, argumentName]
     ))
+  }
+
+  function isObjectPattern(node) {
+    return node.type === 'ObjectPattern'
   }
 
   function getParam(param, i) {
@@ -373,14 +385,14 @@ export default function ({ types: t, template }) {
     }
   }
 
-  function getFunctionArgumentCheckExpressions(node) {
+  function getFunctionArgumentCheckExpressions(node, typeParameters) {
     const params = node.params.map(getParam).filter(x => x)
 
     if (params.length > 0) {
       ensureTcombExpression()
     }
 
-    return params.map(getAssert)
+    return params.map(param => getAssert(param, typeParameters))
   }
 
   function getParamName(param) {
@@ -396,7 +408,7 @@ export default function ({ types: t, template }) {
     return t.identifier(param.name)
   }
 
-  function getWrappedFunctionReturnWithTypeCheck(node) {
+  function getWrappedFunctionReturnWithTypeCheck(node, typeParameters) {
     const params = node.params.map(getParamName)
     const callParams = params.map(param => {
       if (isObjectPattern(param)) {
@@ -411,7 +423,7 @@ export default function ({ types: t, template }) {
       id,
       typeAnnotation: node.returnType.typeAnnotation,
       argumentName: t.stringLiteral('return value')
-    })
+    }, typeParameters)
 
     return [
       t.variableDeclaration('const', [
@@ -428,16 +440,21 @@ export default function ({ types: t, template }) {
     ]
   }
 
-  function getTypeParameters(node) {
-    const typeParameters = {}
-    if (node.typeParameters) {
-      node.typeParameters.params.forEach(param => typeParameters[param.name] = true)
+  function getTypeParameters(path) {
+    if (path) {
+      const node = path.node
+      let typeParameters = getTypeParameters(path.parentPath)
+      if (node.typeParameters) {
+        typeParameters = typeParameters || {}
+        node.typeParameters.params.forEach(param => typeParameters[param.name] = true)
+      }
+      return typeParameters
     }
-    return typeParameters
   }
 
-  function getTypeAliasDefinition(node) {
-    const typeParameters = getTypeParameters(node)
+  function getTypeAliasDefinition(path) {
+    const node = path.node
+    const typeParameters = getTypeParameters(path)
     return t.variableDeclaration('const', [
       t.variableDeclarator(
         node.id,
@@ -450,8 +467,9 @@ export default function ({ types: t, template }) {
     ])
   }
 
-  function getInterfaceDefinition(node) {
-    const typeParameters = getTypeParameters(node)
+  function getInterfaceDefinition(path) {
+    const node = path.node
+    const typeParameters = getTypeParameters(path)
     const name = t.stringLiteral(node.id.name)
     if (node.extends.length === 0) {
       return t.variableDeclaration('const', [
@@ -551,7 +569,7 @@ export default function ({ types: t, template }) {
         preventReservedInterfaceNameUsage(path)
         ensureTcombExpression()
         try {
-          path.replaceWith(getTypeAliasDefinition(path.node))
+          path.replaceWith(getTypeAliasDefinition(path))
         }
         catch (error) {
           buildCodeFrameError(path, error)
@@ -569,7 +587,7 @@ export default function ({ types: t, template }) {
       InterfaceDeclaration(path) {
         preventReservedInterfaceNameUsage(path)
         ensureTcombExpression()
-        path.replaceWith(getInterfaceDefinition(path.node))
+        path.replaceWith(getInterfaceDefinition(path))
       },
 
       Function(path, state) {
@@ -578,6 +596,7 @@ export default function ({ types: t, template }) {
         }
 
         const { node } = path
+        const typeParameters = getTypeParameters(path)
 
         try {
           // Firstly let's replace arrow function expressions into
@@ -592,12 +611,12 @@ export default function ({ types: t, template }) {
           if (node.returnType) {
             ensureTcombExpression()
             path.get('body').replaceWithMultiple(
-              getWrappedFunctionReturnWithTypeCheck(node)
+              getWrappedFunctionReturnWithTypeCheck(node, typeParameters)
             )
           }
 
           // Prepend any argument checks to the top of our function body.
-          const argumentChecks = getFunctionArgumentCheckExpressions(node)
+          const argumentChecks = getFunctionArgumentCheckExpressions(node, typeParameters)
           if (argumentChecks.length > 0) {
             node.body.body.unshift(...argumentChecks)
           }

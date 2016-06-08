@@ -255,19 +255,30 @@ export default function ({ types: t, template }) {
     return getExpressionFromGenericTypeAnnotation(annotation.typeParameters.params[0].argument.id)
   }
 
+  function isGeneric(name, typeParameters) {
+    return typeParameters && typeParameters.hasOwnProperty(name)
+  }
+
+  function shouldReturnAnyType(typeParameters, name) {
+    return isGeneric(name, typeParameters)
+      || name === '$Shape'
+      || name === '$Keys'
+  }
+
   function getGenericTypeAnnotation({ annotation, name, typeParameters }) {
-    if (annotation.id.name === 'Array') {
+    const typeName = annotation.id.name
+    if (typeName === 'Array') {
       if (!annotation.typeParameters || annotation.typeParameters.params.length !== 1) {
         throw new Error(`Unsupported Array type annotation: incorrect number of type parameters (expected 1)`)
       }
       const typeParameter = annotation.typeParameters.params[0]
       return getListCombinator(getType({ annotation: typeParameter, typeParameters }), name)
     }
-    if (typeParameters && typeParameters.hasOwnProperty(annotation.id.name)) {
+    if (shouldReturnAnyType(typeParameters, typeName)) {
       return getAnyType()
     }
     const gta = getExpressionFromGenericTypeAnnotation(annotation.id)
-    if (annotation.id.name === REFINEMENT_INTERFACE_NAME) {
+    if (typeName === REFINEMENT_INTERFACE_NAME) {
       gta._refinementPredicateId = getRefinementPredicateId(annotation)
     }
     return gta

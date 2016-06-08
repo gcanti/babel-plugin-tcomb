@@ -91,7 +91,7 @@ describe("emit asserts for: ", () => {
     if ((caseName in skipTests)) {
       return
     }
-    if (!(caseName in { 'spread': 1 })) {
+    if (!(caseName in { '$shape': 1 })) {
       // return
     }
     it(`should ${caseName.split("-").join(" ")}`, () => {

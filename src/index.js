@@ -21,7 +21,8 @@ export default function ({ types: t, template }) {
         type = tcomb.Any;
       }
       if (tcomb.isType(type) && type.meta.kind !== 'struct') {
-        type(x, [name + ': ' + tcomb.getTypeName(type)]);
+        var y = type.meta.kind === 'interface' && typeof x === 'function' ? tcomb.mixin({}, x) : x;
+        type(y, [name + ': ' + tcomb.getTypeName(type)]);
       } else if (!(x instanceof type)) {
         tcomb.fail('Invalid value ' + tcomb.stringify(x) + ' supplied to ' + name + ' (expected a ' + tcomb.getTypeName(type) + ')');
       }
@@ -565,6 +566,9 @@ export default function ({ types: t, template }) {
         if (!tcombExpression && tcombLibraries.hasOwnProperty(node.source.value)) {
           tcombExpression = getTcombExpressionFromImports(node)
         }
+        if (node.importKind === 'type') {
+          node.importKind = 'value'
+        }
       },
 
       VariableDeclarator({ node }) {
@@ -576,6 +580,14 @@ export default function ({ types: t, template }) {
             node.init.arguments[0].type === 'StringLiteral' &&
             tcombLibraries.hasOwnProperty(node.init.arguments[0].value)) {
           tcombExpression = getTcombExpressionFromRequires(node)
+        }
+      },
+
+      ExportNamedDeclaration(path) {
+        const node = path.node
+        // prevent transform-flow-strip-types stripping exported type aliases and interfaces
+        if (node.declaration && ( node.declaration.type === 'TypeAlias' || node.declaration.type === 'InterfaceDeclaration' ) ) {
+          node.exportKind = 'value'
         }
       },
 

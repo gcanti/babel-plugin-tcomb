@@ -4,7 +4,8 @@ function _assert2(x, type, name) {
   }
 
   if (t.isType(type) && type.meta.kind !== 'struct') {
-    type(x, [name + ': ' + t.getTypeName(type)]);
+    var y = type.meta.kind === 'interface' && typeof x === 'function' ? t.mixin({}, x) : x;
+    type(y, [name + ': ' + t.getTypeName(type)]);
   } else if (!(x instanceof type)) {
     t.fail('Invalid value ' + t.stringify(x) + ' supplied to ' + name + ' (expected a ' + t.getTypeName(type) + ')');
   }

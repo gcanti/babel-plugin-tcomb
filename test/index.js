@@ -86,6 +86,63 @@ describe("refinements", () => {
   })
 })
 
+describe("export type", () => {
+  it('should not strip the exported type', () => {
+    const source = `export type A = {};`
+const expected = `export const A = require("tcomb").interface({}, "A");`
+
+    const actual = babel.transform(
+      source, {
+        babelrc: false,
+        plugins: [
+          [plugin, {
+            skipHelpers: true
+          }],
+          'transform-flow-strip-types'
+        ]
+      }
+    ).code
+    assert.strictEqual(actual, expected)
+  })
+  it('should not strip the exported interface', () => {
+    const source = `export interface A {}`
+const expected = `export const A = require("tcomb").interface({}, "A");`
+
+    const actual = babel.transform(
+      source, {
+        babelrc: false,
+        plugins: [
+          [plugin, {
+            skipHelpers: true
+          }],
+          'transform-flow-strip-types'
+        ]
+      }
+    ).code
+    assert.strictEqual(actual, expected)
+  })
+})
+
+describe("import type", () => {
+  it('should not strip the imported type', () => {
+    const source = `import type { A } from "./types";`
+const expected = `import { A } from "./types";`
+
+    const actual = babel.transform(
+      source, {
+        babelrc: false,
+        plugins: [
+          [plugin, {
+            skipHelpers: true
+          }],
+          'transform-flow-strip-types'
+        ]
+      }
+    ).code
+    assert.strictEqual(actual, expected)
+  })
+})
+
 describe("emit asserts for: ", () => {
   fs.readdirSync(fixturesDir).map((caseName) => {
     if ((caseName in skipTests)) {

@@ -1,5 +1,5 @@
 import t from "tcomb";
 
 function foo(x) {
-  _assert(x, t.Any, "x");
+  _assert(x, typeof T !== "undefined" ? T : t.Any, "x");
 }

@@ -17,18 +17,17 @@ export default function ({ types: t, template }) {
 
   const assertHelper = expression(`
     function assert(x, type, name) {
-      if (!type) {
-        type = tcomb.Any;
-      }
+      type = type || tcomb.Any;
       if (tcomb.isType(type) && type.meta.kind !== 'struct') {
-        var y = type.meta.kind === 'interface' && typeof x === 'function' ? tcomb.mixin({}, x) : x;
-        type(y, [name + ': ' + tcomb.getTypeName(type)]);
+        type(x, [name + ': ' + tcomb.getTypeName(type)]);
       } else if (!(x instanceof type)) {
         tcomb.fail('Invalid value ' + tcomb.stringify(x) + ' supplied to ' + name + ' (expected a ' + tcomb.getTypeName(type) + ')');
       }
       return x;
     }
   `)
+
+  const genericsHelper = expression('typeof type !== "undefined" ? type : tcomb.Any')
 
   //
   // import helpers
@@ -367,6 +366,10 @@ export default function ({ types: t, template }) {
       type = getMaybeCombinator(type)
     }
     argumentName = argumentName || t.stringLiteral(getArgumentName(id))
+    if (type.type === 'Identifier') {
+      ensureTcombExpression()
+      type = genericsHelper({ tcomb: tcombExpression, type })
+    }
     return t.expressionStatement(t.callExpression(
       assertHelperName,
       [id, type, argumentName]
@@ -617,7 +620,6 @@ export default function ({ types: t, template }) {
         }
 
         const { node } = path
-        const typeParameters = getTypeParameters(path)
 
         try {
           // Firstly let's replace arrow function expressions into
@@ -632,12 +634,12 @@ export default function ({ types: t, template }) {
           if (node.returnType) {
             ensureTcombExpression()
             path.get('body').replaceWithMultiple(
-              getWrappedFunctionReturnWithTypeCheck(node, typeParameters)
+              getWrappedFunctionReturnWithTypeCheck(node)
             )
           }
 
           // Prepend any argument checks to the top of our function body.
-          const argumentChecks = getFunctionArgumentCheckExpressions(node, typeParameters)
+          const argumentChecks = getFunctionArgumentCheckExpressions(node)
           if (argumentChecks.length > 0) {
             node.body.body.unshift(...argumentChecks)
           }

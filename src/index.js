@@ -369,14 +369,14 @@ export default function ({ types: t, template }) {
     if (param.type === 'AssignmentPattern' && param.left.typeAnnotation) {
       return getParam(param.left, i)
     }
-    else if (param.type === 'RestElement') {
-      return {
-        id: param.argument,
-        optional: param.optional,
-        typeAnnotation: param.typeAnnotation.typeAnnotation
-      }
-    }
     else if (param.typeAnnotation) {
+      if (param.type === 'RestElement') {
+        return {
+          id: param.argument,
+          optional: param.optional,
+          typeAnnotation: param.typeAnnotation.typeAnnotation
+        }
+      }
       return {
         id: t.identifier(isObjectPattern(param) ? 'arguments[' + i + ']' : param.name),
         optional: param.optional,
@@ -400,7 +400,7 @@ export default function ({ types: t, template }) {
       return getParamName(param.left)
     }
     else if (param.type === 'RestElement') {
-      return getParamName(param.argument)
+      return t.restElement(param.argument)
     }
     else if (isObjectPattern(param)) {
       return param
@@ -413,6 +413,9 @@ export default function ({ types: t, template }) {
     const callParams = params.map(param => {
       if (isObjectPattern(param)) {
         return t.objectExpression(param.properties)
+      }
+      else if (param.type === 'RestElement') {
+        return t.spreadElement(param.argument)
       }
       return param
     })

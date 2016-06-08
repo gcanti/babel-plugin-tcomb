@@ -1,12 +1,12 @@
 import t from 'tcomb';
 
-function foo(x: bool) {
+function foo(x) {
   _assert(x, t.Boolean, 'x');
 
   return x;
 }
 
-function bar(x: bool) {
+function bar(x) {
   _assert(x, t.Boolean, 'x');
 
   return x;

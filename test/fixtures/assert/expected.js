@@ -17,6 +17,6 @@ import t from 'tcomb';
 
 function _assert() {}
 
-function foo(x: string) {
+function foo(x) {
   _assert2(x, t.String, 'x');
 }

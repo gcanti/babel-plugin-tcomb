@@ -1,0 +1,1 @@
+export const A = require("tcomb").interface({}, "A");

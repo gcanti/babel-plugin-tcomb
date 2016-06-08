@@ -5,7 +5,7 @@ const User = t.interface({
 }, "User");
 
 
-export function getUser(userId: string): Promise<User> {
+export function getUser(userId) {
   _assert(userId, t.String, "userId");
 
   const ret = function (userId) {

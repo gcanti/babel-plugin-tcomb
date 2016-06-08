@@ -1,5 +1,5 @@
 import t from 'tcomb';
-function foo(x: t.Number, y: t.String) {
+function foo(x, y) {
   _assert(x, t.Number, 'x');
 
   _assert(y, t.String, 'y');

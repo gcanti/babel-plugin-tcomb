@@ -1,6 +1,6 @@
 import t from 'tcomb';
 
-function foo(p: Promise<string>): void {
+function foo(p) {
   _assert(p, Promise, 'p');
 
   const ret = function (p) {}.call(this, p);

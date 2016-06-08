@@ -1,6 +1,6 @@
 import t from 'tcomb';
 
-function foo(): void {
+function foo() {
   const ret = function () {}.call(this);
 
   _assert(ret, t.Nil, 'return value');
@@ -8,7 +8,7 @@ function foo(): void {
   return ret;
 }
 
-function bar(): null {
+function bar() {
   const ret = function () {}.call(this);
 
   _assert(ret, t.Nil, 'return value');

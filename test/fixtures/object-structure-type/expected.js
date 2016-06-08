@@ -1,5 +1,5 @@
 import t from 'tcomb';
-function foo(x: { foo: t.Boolean; y: { bar: t.String }; }): { baz: t.Boolean; a: { bob: t.String }; } {
+function foo(x) {
   _assert(x, t.interface({
     foo: t.Boolean,
     y: t.interface({
@@ -21,7 +21,7 @@ function foo(x: { foo: t.Boolean; y: { bar: t.String }; }): { baz: t.Boolean; a:
   return ret;
 }
 
-function getFullName(person: { name: t.String; surname: t.String; }) {
+function getFullName(person) {
   _assert(person, t.interface({
     name: t.String,
     surname: t.String

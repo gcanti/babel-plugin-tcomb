@@ -594,12 +594,7 @@ export default function ({ types: t, template }) {
       TypeAlias(path) {
         preventReservedInterfaceNameUsage(path)
         ensureTcombExpression()
-        try {
-          path.replaceWith(getTypeAliasDefinition(path))
-        }
-        catch (error) {
-          buildCodeFrameError(path, error)
-        }
+        path.replaceWith(getTypeAliasDefinition(path))
       },
 
       TypeCastExpression(path) {

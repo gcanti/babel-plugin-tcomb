@@ -1,6 +1,6 @@
 import t from 'tcomb';
 
-function foo(x: t.Number, y = 1) {
+function foo(x, y = 1) {
   _assert(x, t.Number, 'x');
 
   _assert(y, t.Number, 'y');
@@ -8,7 +8,7 @@ function foo(x: t.Number, y = 1) {
   return x + y;
 }
 
-function bar(x: t.Number, y = 1) {
+function bar(x, y = 1) {
   _assert(x, t.Number, 'x');
 
   _assert(y, t.maybe(t.Number), 'y');

@@ -1,6 +1,6 @@
 import t from 'tcomb';
 class A {
-  constructor(x: t.String) {
+  constructor(x) {
     _assert(x, t.String, 'x');
 
     this.x = x;

@@ -1,12 +1,12 @@
 import t from 'tcomb';
 
-function foo(f: (x: t.String) => t.String) {
+function foo(f) {
   _assert(f, t.Function, 'f');
 
   return f('a');
 }
 
-function bar(f: t.Function) {
+function bar(f) {
   _assert(f, t.Function, 'f');
 
   return f('a');

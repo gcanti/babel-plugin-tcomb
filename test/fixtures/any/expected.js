@@ -1,6 +1,6 @@
 import t from 'tcomb';
 
-function foo(): any {
+function foo() {
   const ret = function () {}.call(this);
 
   _assert(ret, t.Any, 'return value');

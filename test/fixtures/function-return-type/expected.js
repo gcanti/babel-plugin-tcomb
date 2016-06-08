@@ -1,6 +1,6 @@
 import t from 'tcomb';
 
-function foo(x: t.Number, y: t.String): t.String {
+function foo(x, y) {
   _assert(x, t.Number, 'x');
 
   _assert(y, t.String, 'y');
@@ -14,7 +14,7 @@ function foo(x: t.Number, y: t.String): t.String {
   return ret;
 }
 
-function bar(x, y: t.String): t.String {
+function bar(x, y) {
   _assert(y, t.String, 'y');
 
   const ret = function (x, y) {

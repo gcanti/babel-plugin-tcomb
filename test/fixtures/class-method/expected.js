@@ -1,6 +1,6 @@
 import t from 'tcomb';
 class A {
-  foo(x: t.String): t.String {
+  foo(x) {
     _assert(x, t.String, 'x');
 
     const ret = function (x) {

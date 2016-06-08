@@ -1,12 +1,12 @@
 /* global describe,it */
-const path   = require("path")
-const fs     = require("fs")
-const assert = require("assert")
-const babel  = require("babel-core")
-const plugin = require("../src/index").default
+const path   = require('path')
+const fs     = require('fs')
+const assert = require('assert')
+const babel  = require('babel-core')
+const plugin = require('../src/index').default
 
 function trim(str) {
-  return str.replace(/^\s+|\s+$/, "")
+  return str.replace(/^\s+|\s+$/, '')
 }
 
 const skipTests = {
@@ -14,32 +14,28 @@ const skipTests = {
   'assert': 1
 }
 
-const stripTypes = {
-  'class-generics': 1,
-  'function-generics': 1
-}
+const fixturesDir = path.join(__dirname, 'fixtures')
 
-const fixturesDir = path.join(__dirname, "fixtures")
-
-describe("_assert helper", () => {
+describe('_assert helper', () => {
   it('should emit an _assert helper', () => {
     const actual = babel.transformFileSync(
-        path.join(fixturesDir, "assert/actual.js"), {
+        path.join(fixturesDir, 'assert/actual.js'), {
           babelrc: false,
           plugins: [
-            "syntax-flow",
+            'syntax-flow',
             [plugin, {
               skipHelpers: false
-            }]
+            }],
+            'transform-flow-strip-types'
           ]
         }
       ).code
-    const expected = fs.readFileSync(path.join(fixturesDir, "assert/expected.js")).toString()
+    const expected = fs.readFileSync(path.join(fixturesDir, 'assert/expected.js')).toString()
     assert.equal(trim(actual), trim(expected))
   })
 })
 
-describe("refinements", () => {
+describe('refinements', () => {
   it('should error when a Refinement interface is defined by the user', () => {
     const source = `
     interface $Refinement {}
@@ -50,7 +46,7 @@ describe("refinements", () => {
         source, {
           babelrc: false,
           plugins: [
-            "syntax-flow",
+            'syntax-flow',
             plugin
           ]
         }
@@ -72,7 +68,7 @@ describe("refinements", () => {
         source, {
           babelrc: false,
           plugins: [
-            "syntax-flow",
+            'syntax-flow',
             plugin
           ]
         }
@@ -86,89 +82,29 @@ describe("refinements", () => {
   })
 })
 
-describe("export type", () => {
-  it('should not strip the exported type', () => {
-    const source = `export type A = {};`
-const expected = `export const A = require("tcomb").interface({}, "A");`
-
-    const actual = babel.transform(
-      source, {
-        babelrc: false,
-        plugins: [
-          [plugin, {
-            skipHelpers: true
-          }],
-          'transform-flow-strip-types'
-        ]
-      }
-    ).code
-    assert.strictEqual(actual, expected)
-  })
-  it('should not strip the exported interface', () => {
-    const source = `export interface A {}`
-const expected = `export const A = require("tcomb").interface({}, "A");`
-
-    const actual = babel.transform(
-      source, {
-        babelrc: false,
-        plugins: [
-          [plugin, {
-            skipHelpers: true
-          }],
-          'transform-flow-strip-types'
-        ]
-      }
-    ).code
-    assert.strictEqual(actual, expected)
-  })
-})
-
-describe("import type", () => {
-  it('should not strip the imported type', () => {
-    const source = `import type { A } from "./types";`
-const expected = `import { A } from "./types";`
-
-    const actual = babel.transform(
-      source, {
-        babelrc: false,
-        plugins: [
-          [plugin, {
-            skipHelpers: true
-          }],
-          'transform-flow-strip-types'
-        ]
-      }
-    ).code
-    assert.strictEqual(actual, expected)
-  })
-})
-
-describe("emit asserts for: ", () => {
+describe('emit asserts for: ', () => {
   fs.readdirSync(fixturesDir).map((caseName) => {
     if ((caseName in skipTests)) {
       return
     }
-    if (!(caseName in { '$shape': 1 })) {
+    if (!(caseName in { 'class-generics': 1 })) {
       // return
     }
-    it(`should ${caseName.split("-").join(" ")}`, () => {
+    it(`should ${caseName.split('-').join(' ')}`, () => {
       const fixtureDir = path.join(fixturesDir, caseName)
-      const plugins = [
-        "syntax-flow",
-        [plugin, {
-          skipHelpers: true
-        }]
-      ]
-      if (caseName in stripTypes) {
-        plugins.push('transform-flow-strip-types')
-      }
       const actual = babel.transformFileSync(
-        path.join(fixtureDir, "actual.js"), {
+        path.join(fixtureDir, 'actual.js'), {
           babelrc: false,
-          plugins
+          plugins: [
+            'syntax-flow',
+            [plugin, {
+              skipHelpers: true
+            }],
+            'transform-flow-strip-types'
+          ]
         }
       ).code
-      const expected = fs.readFileSync(path.join(fixtureDir, "expected.js")).toString()
+      const expected = fs.readFileSync(path.join(fixtureDir, 'expected.js')).toString()
 
       assert.equal(trim(actual), trim(expected))
     })

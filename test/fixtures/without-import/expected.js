@@ -1,6 +1,6 @@
 import { Number } from 'tcomb';
 
-function sum(a: Number, b: Number): Number {
+function sum(a, b) {
   _assert(a, Number, 'a');
 
   _assert(b, Number, 'b');

@@ -1,15 +1,17 @@
 import t from 'tcomb';
 
-function foo(x: t.Number, y = 1: t.Number) {
-  t.assert(t.Number.is(x), 'Invalid argument x (expected a ' + t.getTypeName(t.Number) + ')');
-  t.assert(t.Number.is(y), 'Invalid argument y (expected a ' + t.getTypeName(t.Number) + ')');
+function foo(x, y = 1) {
+  _assert(x, t.Number, 'x');
+
+  _assert(y, t.Number, 'y');
 
   return x + y;
 }
 
-function bar(x: t.Number, y = 1) {
-  t.assert(t.Number.is(x), 'Invalid argument x (expected a ' + t.getTypeName(t.Number) + ')');
-  t.assert(t.Number.is(y), 'Invalid argument y (expected a ' + t.getTypeName(t.Number) + ')');
+function bar(x, y = 1) {
+  _assert(x, t.Number, 'x');
+
+  _assert(y, t.maybe(t.Number), 'y');
 
   return x + y;
 }

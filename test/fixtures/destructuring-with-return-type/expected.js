@@ -1,9 +1,10 @@
 import t from 'tcomb';
-function foo({ x: { y: foo, z: { bar } }, a: { bob } }): t.String {
-  var ret = function (foo, bar, bob) {
+function foo({ x: { y: foo, z: { bar } }, a: { bob } }) {
+  const ret = function ({ x: { y: foo, z: { bar } }, a: { bob } }) {
     return bar;
-  }.call(this, foo, bar, bob);
+  }.call(this, { x: { y: foo, z: { bar } }, a: { bob } });
 
-  t.assert(t.String.is(ret), 'Invalid argument ret (expected a ' + t.getTypeName(t.String) + ')');
+  _assert(ret, t.String, 'return value');
+
   return ret;
 }

@@ -1,24 +1,27 @@
 import t from 'tcomb';
 
-function foo(x: t.Number, y: t.String): t.String {
-  t.assert(t.Number.is(x), 'Invalid argument x (expected a ' + t.getTypeName(t.Number) + ')');
-  t.assert(t.String.is(y), 'Invalid argument y (expected a ' + t.getTypeName(t.String) + ')');
+function foo(x, y) {
+  _assert(x, t.Number, 'x');
 
-  var ret = function (x, y) {
+  _assert(y, t.String, 'y');
+
+  const ret = function (x, y) {
     return x + y;
   }.call(this, x, y);
 
-  t.assert(t.String.is(ret), 'Invalid argument ret (expected a ' + t.getTypeName(t.String) + ')');
+  _assert(ret, t.String, 'return value');
+
   return ret;
 }
 
-function bar(x, y: t.String): t.String {
-  t.assert(t.String.is(y), 'Invalid argument y (expected a ' + t.getTypeName(t.String) + ')');
+function bar(x, y) {
+  _assert(y, t.String, 'y');
 
-  var ret = function (x, y) {
+  const ret = function (x, y) {
     return x + y;
   }.call(this, x, y);
 
-  t.assert(t.String.is(ret), 'Invalid argument ret (expected a ' + t.getTypeName(t.String) + ')');
+  _assert(ret, t.String, 'return value');
+
   return ret;
 }

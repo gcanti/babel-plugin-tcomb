@@ -1,7 +1,7 @@
 const tc = require('tcomb');
 
-function foo(x: ?tc.String) {
-  tc.assert(tc.maybe(tc.String).is(x), 'Invalid argument x (expected a ' + tc.getTypeName(tc.maybe(tc.String)) + ')');
+function foo(x) {
+  _assert(x, tc.maybe(tc.String), 'x');
 
   return x || 'Empty';
 }

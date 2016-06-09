@@ -4,8 +4,8 @@ const Person = t.struct({
   name: t.String
 });
 
-function foo(person: Person) {
-  t.assert(Person.is(person), 'Invalid argument person (expected a ' + t.getTypeName(Person) + ')');
+function foo(person) {
+  _assert(person, typeof Person !== "undefined" ? Person : t.Any, 'person');
 
   return person.name;
 }

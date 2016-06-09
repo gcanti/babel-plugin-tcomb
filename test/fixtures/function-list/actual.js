@@ -7,3 +7,11 @@ function foo(x: Array<t.String>) {
 function bar(x: t.String[]) {
   return x;
 }
+
+function baz(x: Array<string>) {
+  return x;
+}
+
+function foobaz(x: Array<Promise<T>>) {
+  return x;
+}

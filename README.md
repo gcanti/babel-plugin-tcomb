@@ -1,46 +1,92 @@
 [tcomb](https://github.com/gcanti/tcomb) is a library for Node.js and the browser which allows you to check the types of JavaScript values at runtime with a simple and concise syntax. It's great for Domain Driven Design and for adding safety to your internal code.
 
-babel-plugin-tcomb is a babel plugin for runtime type checking using tcomb. You can annotate a function (arguments and return type) with tcomb types.
+# Why?
 
-# Babel versions
+- you don't want or you can't use `Flow`
+- you want refinement types
+- you want to validate the IO boundary (for example API payloads)
+- you want to enforce immutability
+- you want to leverage the runtime type introspection provided by `tcomb`'s types
 
-- ^5.0.0 -> babel-plugin-tcomb ^0.1.0
-- ^6.0.0 -> babel-plugin-tcomb ^0.2.0
+# `Flow` compatible
+
+`babel-plugin-tcomb` **is `Flow` compatible**, this means that you can run them side by side, statically checking your code with `Flow` and let `tcomb` catching the remaining bugs at runtime.
 
 # How it works
 
 ```js
-import t from 'tcomb';
-
-// add type annotations
-function foo(x: t.Number, y: t.String): t.String {
-  return x + y;
-}
-
-// compiled to
-function foo(x: t.Number, y: t.String): t.String {
-
-  // check the arguments
-  t.assert(t.Number.is(x), 'Invalid argument x (expected a ' + t.getTypeName(t.Number) + ')');
-  t.assert(t.String.is(y), 'Invalid argument y (expected a ' + t.getTypeName(t.String) + ')');
-
-  // exec the original function
-  const ret = function (x, y) {
-    return x + y;
-  }(x, y);
-
-  // check the return type
-  t.assert(t.String.is(ret), 'Invalid argument ret (expected a ' + t.getTypeName(t.String) + ')');
-  return ret;
+function sum(a: number, b: number): number {
+  return a + b
 }
 ```
 
-Now the `foo` function is type-checked, this means...
+compiles to:
 
 ```js
-foo(1, 'a'); // => ok
-foo(1, 2); // => ...will throws "[tcomb] Invalid value 2 supplied to String"
+// _assert is an helper added by babel-plugin-tcomb
+function sum(a, b) {
+  _assert(a, require('tcomb').Number, 'a') // <= runtime type checking by tcomb
+  _assert(b, require('tcomb').Number, 'b')
+
+  const ret = function (a, b) {
+    return a + b
+  }.call(this, a, b)
+
+  _assert(ret, require('tcomb').Number, 'return value')
+
+  return ret
+}
 ```
+
+# Defining refinements (*)
+
+In order to define refinement types you can use the `$Refinement` type providing a predicate:
+
+```js
+import type { $Refinement } from 'tcomb'
+
+// define you predicate...
+const isInteger = n => n % 2 === 0
+
+// ...and pass it to the suitable intersection type involving the $Refinement type
+type Integer = number & $Refinement<typeof isInteger>;
+
+function foo(n: Integer) {
+  return n
+}
+
+foo(2)   // flow ok, tcomb ok
+foo(2.1) // flow ok, tcomb throws [tcomb] Invalid value 2.1 supplied to n: Integer
+foo('a') // flow throws, tcomb throws
+```
+
+# Runtime type introspection (*)
+
+```js
+import type { $Reify } from 'tcomb'
+
+type Person = { name: string };
+
+const ReifiedPerson = (({}: any): $Reify<Person>)
+console.log(ReifiedPerson.meta) // => { kind: 'interface', props: ... }
+```
+
+> (*) these are considered (inevitable and useful) hacks
+
+# Validating (at runtime) the IO boundary using typecasts
+
+```js
+type User = { name: string };
+
+export function loadUser(userId: string): Promise<User> {
+  return axios.get('...').then(p => (p: User)) // <= type cast
+}
+```
+
+# Caveats
+
+- `tcomb` must be `require`able
+- generics are not handled (`Flow`'s responsability)
 
 # Setup
 
@@ -50,224 +96,12 @@ First, install via npm.
 npm install --save-dev babel-plugin-tcomb
 ```
 
-Then, in your babel configuration (usually in your .babelrc file), add (at least) the following plugins:
+Then, in your babel configuration (usually in your `.babelrc` file), add (at least) the following plugins:
 
-```json
 {
   "plugins" : ["syntax-flow", "tcomb", "transform-flow-strip-types"]
 }
-```
 
-# Features
+# Plugin config
 
-**default values**
-
-```js
-function foo(x: t.Number, y = 1: t.Number) {
-  return x + y;
-}
-
-// compiles to
-function foo(x: t.Number, y = 1: t.Number) {
-  t.assert(t.Number.is(x), ...);
-  t.assert(t.Number.is(y), ...);
-
-  return x + y;
-}
-```
-
-Alternative syntax:
-
-```js
-function foo(x: t.Number, y: t.Number = 1) {
-  return x + y;
-}
-
-// compiles to
-function foo(x: t.Number, y = 1) {
-  t.assert(t.Number.is(x), ...);
-  t.assert(t.Number.is(y), ...);
-
-  return x + y;
-}
-```
-
-**structural typing**
-
-```js
-function getFullName(person: {name: t.String, surname: t.String}) {
-  return `${name} ${surname}`;
-}
-
-// compiles to
-function getFullName(person: { name: t.String; surname: t.String; }) {
-  t.assert(t.Object.is(person), 'Invalid argument person (expected a ' + t.getTypeName(t.Object) + ')');
-  t.assert(t.String.is(person.name), 'Invalid argument person.name (expected a ' + t.getTypeName(t.String) + ')');
-  t.assert(t.String.is(person.surname), 'Invalid argument person.surname (expected a ' + t.getTypeName(t.String) + ')');
-
-  return `${ name } ${ surname }`;
-}
-```
-
-**`struct` combinator**
-
-```js
-const Person = t.struct({
-  name: t.String
-});
-
-function foo(person: Person) {
-  return person.name;
-}
-
-// compiles to
-function foo(person: Person) {
-  t.assert(Person.is(person), ...);
-
-  return person.name;
-}
-```
-
-**`refinement` combinator**
-
-```js
-const Integer = t.refinement(t.Number, (n) => n % 1 === 0);
-
-function foo(x: Integer) {
-  return x;
-}
-
-// compiles to
-function foo(x: Integer) {
-  t.assert(Integer.is(x), ...);
-
-  return x;
-}
-```
-
-**`maybe` combinator**
-
-```js
-function foo(x: ?t.String) {
-  return x;
-}
-
-// compiles to
-function foo(x: ?t.String) {
-  t.assert(t.maybe(t.String).is(x), ...);
-
-  return x;
-}
-```
-
-**`list` combinator**
-
-```js
-function foo(x: Array<t.String>) {
-  return x;
-}
-
-// compiles to
-function foo(x: Array<t.String>) {
-  t.assert(t.list(t.String).is(x), ...);
-
-  return x;
-}
-```
-
-**`tuple` combinator**
-
-```js
-function foo(x: [t.String, t.Number]) {
-  return x;
-}
-
-// compiles to
-function foo(x: [t.String, t.Number]) {
-  t.assert(t.tuple([t.String, t.Number]).is(x), ...);
-
-  return x;
-}
-```
-
-**`union` combinator**
-
-```js
-function foo(x: t.String | t.Number) {
-  return x;
-}
-
-// compiles to
-function foo(x: t.String | t.Number) {
-  t.assert(t.union([t.String, t.Number]).is(x), ...);
-
-  return x;
-}
-```
-
-**`dict` combinator**
-
-```js
-function foo(x: {[key: t.String]: t.Number}) {
-  return x;
-}
-
-// compiles to
-function foo(x: { [key: t.String]: t.Number }) {
-  t.assert(t.dict(t.String, t.Number).is(x), ...);
-
-  return x;
-}
-```
-
-**`intersection` combinator**
-
-```js
-function foo(x: t.Number & t.String) {
-  return x;
-}
-
-// compiles to
-function foo(x: t.Number & t.String) {
-  t.assert(t.intersection([t.Number, t.String]).is(x), ...);
-
-  return x;
-}
-```
-
-**Arrow functions**
-
-```js
-const f = (x: t.String) => x;
-
-// compiles to
-const f = x => {
-  t.assert(t.String.is(x), ...);
-
-  return x;
-};
-```
-
-**Classes**
-
-```js
-class A {
-  foo(x: t.String): t.String {
-    return x;
-  }
-}
-
-// compiles to
-class A {
-  foo(x: t.String): t.String {
-    t.assert(t.String.is(x), ...);
-
-    const ret = function (x) {
-      return x;
-    }(x);
-
-    t.assert(t.String.is(ret));
-    return ret;
-  }
-}
-```
+- `skipAsserts` removes the asserts but keeps the models

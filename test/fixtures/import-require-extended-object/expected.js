@@ -1,7 +1,7 @@
 const { t } = require('tcomb-react');
 
-function foo(x: ?t.String) {
-  t.assert(t.maybe(t.String).is(x), 'Invalid argument x (expected a ' + t.getTypeName(t.maybe(t.String)) + ')');
+function foo(x) {
+  _assert(x, t.maybe(t.String), 'x');
 
   return x || 'Empty';
 }

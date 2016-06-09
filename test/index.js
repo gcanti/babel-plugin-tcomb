@@ -1,76 +1,112 @@
-const path   = require("path");
-const fs     = require("fs");
-const assert = require("assert");
-const babel  = require("babel-core");
-const plugin = require("../src/index").default;
+/* global describe,it */
+const path   = require('path')
+const fs     = require('fs')
+const assert = require('assert')
+const babel  = require('babel-core')
+const plugin = require('../src/index').default
 
 function trim(str) {
-  return str.replace(/^\s+|\s+$/, "");
+  return str.replace(/^\s+|\s+$/, '')
 }
 
 const skipTests = {
-  '.DS_Store': 1
+  '.DS_Store': 1,
+  'assert': 1
 }
 
-describe("ensure guards", () => {
-  describe("tcomb import guarding", () => {
-    it(`should error when type checking`, () => {
-      const source = `
-        function foo(x: t.String) {
-          return x;
-        }`;
+const fixturesDir = path.join(__dirname, 'fixtures')
 
-      assert.throws(() => {
-        babel.transform(
-          source, {
-            babelrc: false,
-            plugins: [plugin, "syntax-flow"]
-          }
-        )
-      }, err => {
-        if ((err instanceof Error) &&
-          /an import of tcomb must be available/.test(err) ) {
-          return true;
+describe('_assert helper', () => {
+  it('should emit an _assert helper', () => {
+    const actual = babel.transformFileSync(
+        path.join(fixturesDir, 'assert/actual.js'), {
+          babelrc: false,
+          plugins: [
+            'syntax-flow',
+            [plugin, {
+              skipHelpers: false
+            }],
+            'transform-flow-strip-types'
+          ]
         }
-      });
-    });
+      ).code
+    const expected = fs.readFileSync(path.join(fixturesDir, 'assert/expected.js')).toString()
+    assert.equal(trim(actual), trim(expected))
+  })
+})
 
-    it(`should NOT error when NOT type checking`, () => {
-      const source = `
-        function foo(x) {
-          return x;
-        }`;
+describe('refinements', () => {
+  it('should error when a Refinement interface is defined by the user', () => {
+    const source = `
+    interface $Refinement {}
+    `
 
-      assert.doesNotThrow(() => {
-        babel.transform(
-          source, {
-            babelrc: false,
-            plugins: [plugin, "syntax-flow"]
-          }
-        )
-      });
-    });
-  });
-});
+    assert.throws(() => {
+      babel.transform(
+        source, {
+          babelrc: false,
+          plugins: [
+            'syntax-flow',
+            plugin
+          ]
+        }
+      )
+    }, err => {
+      if ((err instanceof Error) &&
+        /\$Refinement is a reserved interface name for babel-plugin-tcomb/.test(err.message) ) {
+        return true
+      }
+    })
+  })
+  it('should error when a Refinement type is defined by the user', () => {
+    const source = `
+    type $Refinement = any;
+    `
 
+    assert.throws(() => {
+      babel.transform(
+        source, {
+          babelrc: false,
+          plugins: [
+            'syntax-flow',
+            plugin
+          ]
+        }
+      )
+    }, err => {
+      if ((err instanceof Error) &&
+        /\$Refinement is a reserved interface name for babel-plugin-tcomb/.test(err.message) ) {
+        return true
+      }
+    })
+  })
+})
 
-describe("emit type checks", () => {
-  const fixturesDir = path.join(__dirname, "fixtures");
+describe('emit asserts for: ', () => {
   fs.readdirSync(fixturesDir).map((caseName) => {
     if ((caseName in skipTests)) {
-      return;
+      return
     }
-    it(`should ${caseName.split("-").join(" ")}`, () => {
-      const fixtureDir = path.join(fixturesDir, caseName);
-      const actual     = babel.transformFileSync(
-        path.join(fixtureDir, "actual.js"), {
+    if (!(caseName in { 'class-generics': 1 })) {
+      // return
+    }
+    it(`should ${caseName.split('-').join(' ')}`, () => {
+      const fixtureDir = path.join(fixturesDir, caseName)
+      const actual = babel.transformFileSync(
+        path.join(fixtureDir, 'actual.js'), {
           babelrc: false,
-          plugins: [plugin, "syntax-flow"]
+          plugins: [
+            'syntax-flow',
+            [plugin, {
+              skipHelpers: true
+            }],
+            'transform-flow-strip-types'
+          ]
         }
-      ).code;
-      const expected = fs.readFileSync(path.join(fixtureDir, "expected.js")).toString();
+      ).code
+      const expected = fs.readFileSync(path.join(fixtureDir, 'expected.js')).toString()
 
-      assert.equal(trim(actual), trim(expected));
-    });
-  });
-});
+      assert.equal(trim(actual), trim(expected))
+    })
+  })
+})

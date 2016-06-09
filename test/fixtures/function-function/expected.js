@@ -1,13 +1,13 @@
 import t from 'tcomb';
 
-function foo(f: (x: t.String) => t.String) {
-  t.assert(t.func([t.String], t.String).is(f), 'Invalid argument f (expected a ' + t.getTypeName(t.func([t.String], t.String)) + ')');
+function foo(f) {
+  _assert(f, t.Function, 'f');
 
   return f('a');
 }
 
-function bar(f: t.Function) {
-  t.assert(t.Function.is(f), 'Invalid argument f (expected a ' + t.getTypeName(t.Function) + ')');
+function bar(f) {
+  _assert(f, t.Function, 'f');
 
   return f('a');
 }

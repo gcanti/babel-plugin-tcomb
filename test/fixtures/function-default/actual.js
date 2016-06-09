@@ -1,9 +1,9 @@
 import t from 'tcomb';
 
-function foo(x: t.Number, y = 1: t.Number) {
+function foo(x: t.Number, y: t.Number = 1) {
   return x + y;
 }
 
-function bar(x: t.Number, y: t.Number = 1) {
+function bar(x: t.Number, y?: t.Number = 1) {
   return x + y;
 }

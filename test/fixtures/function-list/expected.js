@@ -1,13 +1,25 @@
 import t from 'tcomb';
 
-function foo(x: Array<t.String>) {
-  t.assert(t.list(t.String).is(x), 'Invalid argument x (expected a ' + t.getTypeName(t.list(t.String)) + ')');
+function foo(x) {
+  _assert(x, t.list(t.String), 'x');
 
   return x;
 }
 
-function bar(x: t.String[]) {
-  t.assert(t.list(t.String).is(x), 'Invalid argument x (expected a ' + t.getTypeName(t.list(t.String)) + ')');
+function bar(x) {
+  _assert(x, t.list(t.String), 'x');
+
+  return x;
+}
+
+function baz(x) {
+  _assert(x, t.list(t.String), 'x');
+
+  return x;
+}
+
+function foobaz(x) {
+  _assert(x, t.list(Promise), 'x');
 
   return x;
 }

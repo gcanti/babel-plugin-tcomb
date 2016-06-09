@@ -9,6 +9,7 @@ const tcombLibraries = {
 const PLUGIN_NAME = 'babel-plugin-tcomb'
 const INTERFACE_COMBINATOR_NAME = 'interface'
 const REFINEMENT_INTERFACE_NAME = '$Refinement'
+const REIFY_NAME = '$Reify'
 
 export default function ({ types: t, template }) {
 
@@ -602,10 +603,24 @@ export default function ({ types: t, template }) {
 
       TypeCastExpression(path) {
         const { node } = path
-        path.replaceWith(getAssert({
-          id: node.expression,
-          typeAnnotation: node.typeAnnotation.typeAnnotation
-        }))
+        // handle runtime type introspection
+        if (node.typeAnnotation &&
+            node.typeAnnotation.typeAnnotation &&
+            node.typeAnnotation.typeAnnotation.id &&
+            node.typeAnnotation.typeAnnotation.id.name === REIFY_NAME) {
+          try {
+            path.replaceWith(node.typeAnnotation.typeAnnotation.typeParameters.params[0].id)
+          }
+          catch (error) {
+            buildCodeFrameError(path, new Error(`Invalid use of ${REIFY_NAME}`))
+          }
+        }
+        else {
+          path.replaceWith(getAssert({
+            id: node.expression,
+            typeAnnotation: node.typeAnnotation.typeAnnotation
+          }))
+        }
       },
 
       InterfaceDeclaration(path) {

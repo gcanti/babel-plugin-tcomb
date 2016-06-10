@@ -1,6 +1,0 @@
-.*
-*.log
-webpack.config.js
-node_modules
-test
-src

@@ -1,3 +1,11 @@
+import t from 'tcomb';
+
+function _assert() {}
+
+function foo(x) {
+  _assert2(x, t.String, 'x');
+}
+
 function _assert2(x, type, name) {
   type = type || t.Any;
 
@@ -8,12 +16,4 @@ function _assert2(x, type, name) {
   }
 
   return x;
-}
-
-import t from 'tcomb';
-
-function _assert() {}
-
-function foo(x) {
-  _assert2(x, t.String, 'x');
 }

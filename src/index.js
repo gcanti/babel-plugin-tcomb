@@ -568,7 +568,7 @@ export default function ({ types: t, template }) {
             return
           }
           ensureTcombExpression()
-          path.node.body.unshift(assertHelper({
+          path.node.body.push(assertHelper({
             assert: assertHelperName,
             tcomb: tcombExpression
           }))
@@ -580,6 +580,7 @@ export default function ({ types: t, template }) {
         if (!tcombExpression && tcombLibraries.hasOwnProperty(node.source.value)) {
           tcombExpression = getTcombExpressionFromImports(node)
         }
+        // prevent transform-flow-strip-types
         if (node.importKind === 'type') {
           node.importKind = 'value'
         }
@@ -599,7 +600,7 @@ export default function ({ types: t, template }) {
 
       ExportNamedDeclaration(path) {
         const node = path.node
-        // prevent transform-flow-strip-types stripping exported type aliases and interfaces
+        // prevent transform-flow-strip-types
         if (node.declaration && ( node.declaration.type === 'TypeAlias' || node.declaration.type === 'InterfaceDeclaration' ) ) {
           node.exportKind = 'value'
         }

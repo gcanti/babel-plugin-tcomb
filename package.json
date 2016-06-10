@@ -21,6 +21,9 @@
     "url": "https://github.com/gcanti/babel-plugin-tcomb/issues"
   },
   "homepage": "https://github.com/gcanti/babel-plugin-tcomb",
+  "peerDependencies": {
+    "tcomb": "^3.2.2"
+  },
   "devDependencies": {
     "babel-cli": "6.9.0",
     "babel-core": "6.9.1",

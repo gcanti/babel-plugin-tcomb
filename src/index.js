@@ -1,15 +1,22 @@
 const tcombLibraries = {
-  'tcomb': 1,
-  'tcomb-validation': 1,
-  'tcomb-react': 1,
-  'tcomb-form': 1,
-  'redux-tcomb': 1
+  'tcomb': true,
+  'tcomb-validation': true,
+  'tcomb-react': true,
+  'tcomb-form': true,
+  'redux-tcomb': true
 }
 
 const PLUGIN_NAME = 'babel-plugin-tcomb'
 const INTERFACE_COMBINATOR_NAME = 'interface'
-const REFINEMENT_INTERFACE_NAME = '$Refinement'
-const REIFY_NAME = '$Reify'
+
+// plugin magic types
+const MAGIC_REFINEMENT_NAME = '$Refinement'
+const MAGIC_REIFY_NAME = '$Reify'
+
+const reservedNames = {
+  [MAGIC_REFINEMENT_NAME]: true,
+  [MAGIC_REIFY_NAME]: true
+}
 
 export default function ({ types: t, template }) {
 
@@ -262,8 +269,10 @@ export default function ({ types: t, template }) {
 
   function shouldReturnAnyType(typeParameters, name) {
     return isGeneric(name, typeParameters)
+      // Flow magic types
       || name === '$Shape'
       || name === '$Keys'
+      || name === '$Diff'
   }
 
   function getGenericTypeAnnotation({ annotation, name, typeParameters }) {
@@ -279,7 +288,7 @@ export default function ({ types: t, template }) {
       return getAnyType()
     }
     const gta = getExpressionFromGenericTypeAnnotation(annotation.id)
-    if (typeName === REFINEMENT_INTERFACE_NAME) {
+    if (typeName === MAGIC_REFINEMENT_NAME) {
       gta._refinementPredicateId = getRefinementPredicateId(annotation)
     }
     return gta
@@ -505,8 +514,8 @@ export default function ({ types: t, template }) {
     else {
       // handle extends
       let props = getObjectExpression(node.body.properties)
-      const mixins = node.extends.filter(m => m.id.name !== REFINEMENT_INTERFACE_NAME)
-      const refinements = node.extends.filter(m => m.id.name === REFINEMENT_INTERFACE_NAME)
+      const mixins = node.extends.filter(m => m.id.name !== MAGIC_REFINEMENT_NAME)
+      const refinements = node.extends.filter(m => m.id.name === MAGIC_REFINEMENT_NAME)
       const len = refinements.length
       if (len > 0) {
         props = getInterfaceCombinator(props)
@@ -533,9 +542,10 @@ export default function ({ types: t, template }) {
     throw path.buildCodeFrameError(`[${PLUGIN_NAME}] ${error.message}`)
   }
 
-  function preventReservedInterfaceNameUsage(path) {
-    if (path.node.id.name === REFINEMENT_INTERFACE_NAME) {
-      buildCodeFrameError(path, new Error(`${REFINEMENT_INTERFACE_NAME} is a reserved interface name for ${PLUGIN_NAME}`))
+  function preventReservedNameUsage(path) {
+    const name = path.node.id.name
+    if (name in reservedNames) {
+      buildCodeFrameError(path, new Error(`${name} is a reserved interface name for ${PLUGIN_NAME}`))
     }
   }
 
@@ -596,7 +606,7 @@ export default function ({ types: t, template }) {
       },
 
       TypeAlias(path) {
-        preventReservedInterfaceNameUsage(path)
+        preventReservedNameUsage(path)
         ensureTcombExpression()
         path.replaceWith(getTypeAliasDefinition(path))
       },
@@ -607,12 +617,12 @@ export default function ({ types: t, template }) {
         if (node.typeAnnotation &&
             node.typeAnnotation.typeAnnotation &&
             node.typeAnnotation.typeAnnotation.id &&
-            node.typeAnnotation.typeAnnotation.id.name === REIFY_NAME) {
+            node.typeAnnotation.typeAnnotation.id.name === MAGIC_REIFY_NAME) {
           try {
             path.replaceWith(node.typeAnnotation.typeAnnotation.typeParameters.params[0].id)
           }
           catch (error) {
-            buildCodeFrameError(path, new Error(`Invalid use of ${REIFY_NAME}`))
+            buildCodeFrameError(path, new Error(`Invalid use of ${MAGIC_REIFY_NAME}`))
           }
         }
         else {
@@ -624,7 +634,7 @@ export default function ({ types: t, template }) {
       },
 
       InterfaceDeclaration(path) {
-        preventReservedInterfaceNameUsage(path)
+        preventReservedNameUsage(path)
         ensureTcombExpression()
         path.replaceWith(getInterfaceDefinition(path))
       },

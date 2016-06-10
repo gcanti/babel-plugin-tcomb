@@ -36,7 +36,7 @@ describe('_assert helper', () => {
 })
 
 describe('refinements', () => {
-  it('should error when a Refinement interface is defined by the user', () => {
+  it('should error when a $Refinement interface is defined by the user', () => {
     const source = `
     interface $Refinement {}
     `
@@ -58,7 +58,7 @@ describe('refinements', () => {
       }
     })
   })
-  it('should error when a Refinement type is defined by the user', () => {
+  it('should error when a $Refinement type is defined by the user', () => {
     const source = `
     type $Refinement = any;
     `
@@ -76,6 +76,53 @@ describe('refinements', () => {
     }, err => {
       if ((err instanceof Error) &&
         /\$Refinement is a reserved interface name for babel-plugin-tcomb/.test(err.message) ) {
+        return true
+      }
+    })
+  })
+})
+
+describe('reify', () => {
+  it('should error when a $Reify interface is defined by the user', () => {
+    const source = `
+    interface $Reify {}
+    `
+
+    assert.throws(() => {
+      babel.transform(
+        source, {
+          babelrc: false,
+          plugins: [
+            'syntax-flow',
+            plugin
+          ]
+        }
+      )
+    }, err => {
+      if ((err instanceof Error) &&
+        /\$Reify is a reserved interface name for babel-plugin-tcomb/.test(err.message) ) {
+        return true
+      }
+    })
+  })
+  it('should error when a $Reify type is defined by the user', () => {
+    const source = `
+    type $Reify = any;
+    `
+
+    assert.throws(() => {
+      babel.transform(
+        source, {
+          babelrc: false,
+          plugins: [
+            'syntax-flow',
+            plugin
+          ]
+        }
+      )
+    }, err => {
+      if ((err instanceof Error) &&
+        /\$Reify is a reserved interface name for babel-plugin-tcomb/.test(err.message) ) {
         return true
       }
     })

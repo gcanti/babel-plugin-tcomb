@@ -22,6 +22,7 @@ export default function ({ types: t, template }) {
 
   let tcombExpression = null
   let assertHelperName = null
+  let hasAsserts = false
 
   const assertHelper = expression(`
     function assert(x, type, name) {
@@ -371,6 +372,7 @@ export default function ({ types: t, template }) {
   }
 
   function getAssert({ id, optional, typeAnnotation, argumentName }, typeParameters) {
+    hasAsserts = true
     let type = getType({ annotation: typeAnnotation, typeParameters })
     if (optional) {
       type = getMaybeCombinator(type)
@@ -561,6 +563,7 @@ export default function ({ types: t, template }) {
           // Ensure we reset the import between each file so that our guard
           // of the import works correctly.
           tcombExpression = null
+          hasAsserts = false
           assertHelperName = path.scope.generateUidIdentifier('assert')
         },
         exit(path, state) {
@@ -568,10 +571,12 @@ export default function ({ types: t, template }) {
             return
           }
           ensureTcombExpression()
-          path.node.body.push(assertHelper({
-            assert: assertHelperName,
-            tcomb: tcombExpression
-          }))
+          if (hasAsserts) {
+            path.node.body.push(assertHelper({
+              assert: assertHelperName,
+              tcomb: tcombExpression
+            }))
+          }
         }
       },
 

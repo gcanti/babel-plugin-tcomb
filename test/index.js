@@ -17,25 +17,60 @@ const skipTests = {
 const fixturesDir = path.join(__dirname, 'fixtures')
 
 describe('_assert helper', () => {
-  it('should emit an _assert helper', () => {
-    const actual = babel.transformFileSync(
-        path.join(fixturesDir, 'assert/actual.js'), {
-          babelrc: false,
-          plugins: [
-            'syntax-flow',
-            [plugin, {
-              skipHelpers: false
-            }],
-            'transform-flow-strip-types'
-          ]
-        }
-      ).code
-    const expected = fs.readFileSync(path.join(fixturesDir, 'assert/expected.js')).toString()
-    assert.equal(trim(actual), trim(expected))
+
+  it('should emit an _assert helper compatible with the current scope', () => {
+    const source = `import t from 'tcomb';
+function _assert(){}
+function foo(x: string) {}
+`
+    const expected = `import t from 'tcomb';
+function _assert() {}
+function foo(x: string) {
+  _assert2(x, t.String, 'x');
+}
+
+function _assert2(x, type, name) {
+  type = type || t.Any;
+
+  if (t.isType(type) && type.meta.kind !== 'struct') {
+    type(x, [name + ': ' + t.getTypeName(type)]);
+  } else if (!(x instanceof type)) {
+    t.fail('Invalid value ' + t.stringify(x) + ' supplied to ' + name + ' (expected a ' + t.getTypeName(type) + ')');
+  }
+
+  return x;
+}`
+    const actual = babel.transform(
+      source, {
+        babelrc: false,
+        plugins: [
+          'syntax-flow',
+          plugin
+        ]
+      }
+    ).code
+    assert.equal(actual, expected)
   })
+
+  it('should not emit an _assert helper if there are no asserts', () => {
+    const source = `function foo(x) {}`
+    const expected = `function foo(x) {}`
+    const actual = babel.transform(
+      source, {
+        babelrc: false,
+        plugins: [
+          'syntax-flow',
+          plugin
+        ]
+      }
+    ).code
+    assert.equal(actual, expected)
+  })
+
 })
 
 describe('refinements', () => {
+
   it('should error when a $Refinement interface is defined by the user', () => {
     const source = `
     interface $Refinement {}
@@ -58,6 +93,7 @@ describe('refinements', () => {
       }
     })
   })
+
   it('should error when a $Refinement type is defined by the user', () => {
     const source = `
     type $Refinement = any;
@@ -80,9 +116,11 @@ describe('refinements', () => {
       }
     })
   })
+
 })
 
 describe('reify', () => {
+
   it('should error when a $Reify interface is defined by the user', () => {
     const source = `
     interface $Reify {}
@@ -105,6 +143,7 @@ describe('reify', () => {
       }
     })
   })
+
   it('should error when a $Reify type is defined by the user', () => {
     const source = `
     type $Reify = any;
@@ -127,6 +166,7 @@ describe('reify', () => {
       }
     })
   })
+
 })
 
 describe('emit asserts for: ', () => {

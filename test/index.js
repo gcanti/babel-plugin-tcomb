@@ -19,23 +19,22 @@ const fixturesDir = path.join(__dirname, 'fixtures')
 describe('_assert helper', () => {
 
   it('should emit an _assert helper compatible with the current scope', () => {
-    const source = `import t from 'tcomb';
-function _assert(){}
+    const source = `function _assert(){}
 function foo(x: string) {}
 `
-    const expected = `import t from 'tcomb';
+    const expected = `import _t from "tcomb";
 function _assert() {}
 function foo(x: string) {
-  _assert2(x, t.String, 'x');
+  _assert2(x, _t.String, "x");
 }
 
 function _assert2(x, type, name) {
-  type = type || t.Any;
+  type = type || _t.Any;
 
-  if (t.isType(type) && type.meta.kind !== 'struct') {
-    type(x, [name + ': ' + t.getTypeName(type)]);
+  if (_t.isType(type) && type.meta.kind !== 'struct') {
+    type(x, [name + ': ' + _t.getTypeName(type)]);
   } else if (!(x instanceof type)) {
-    t.fail('Invalid value ' + t.stringify(x) + ' supplied to ' + name + ' (expected a ' + t.getTypeName(type) + ')');
+    _t.fail('Invalid value ' + _t.stringify(x) + ' supplied to ' + name + ' (expected a ' + _t.getTypeName(type) + ')');
   }
 
   return x;
@@ -174,7 +173,7 @@ describe('emit asserts for: ', () => {
     if ((caseName in skipTests)) {
       return
     }
-    if (!(caseName in { 'class-generics': 1 })) {
+    if (!(caseName in { 'without-import': 1 })) {
       // return
     }
     it(`should ${caseName.split('-').join(' ')}`, () => {

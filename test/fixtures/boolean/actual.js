@@ -1,5 +1,3 @@
-import t from 'tcomb';
-
 function foo(x: boolean) {
   return x
 }

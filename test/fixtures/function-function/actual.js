@@ -1,9 +1,8 @@
-import t from 'tcomb';
-
-function foo(f: (x: t.String) => t.String) {
+function foo(f: (x: string) => string) {
   return f('a');
 }
 
-function bar(f: t.Function) {
+function bar(f: Function) {
   return f('a');
 }
+

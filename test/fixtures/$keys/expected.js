@@ -1,3 +1,2 @@
-import t from "tcomb";
-
-const A = t.Any;
+import _t from "tcomb";
+const A = _t.Any;

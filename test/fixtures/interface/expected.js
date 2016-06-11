@@ -1,10 +1,13 @@
-import t from "tcomb";
+import _t from "tcomb";
 
-const A = t.interface({
-  a: t.String
+const A = _t.interface({
+  a: _t.String
 }, "A");
-const B = t.interface.extend([A, {
-  b: t.String
+
+const B = _t.interface.extend([A, {
+  b: _t.String
 }], "B");
-const C = t.interface.extend([A, {}], "C");
-const D = t.interface.extend([A, t.refinement(t.interface({}), p)], "D");
+
+const C = _t.interface.extend([A, {}], "C");
+
+const D = _t.interface.extend([A, _t.refinement(_t.interface({}), p)], "D");

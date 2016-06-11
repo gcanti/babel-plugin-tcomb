@@ -1,5 +1,3 @@
-import t from "tcomb";
-
 type User = { name: string };
 
 export function getUser(userId: string): Promise<User> {

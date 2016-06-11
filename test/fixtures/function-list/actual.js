@@ -1,17 +1,11 @@
-import t from 'tcomb';
-
-function foo(x: Array<t.String>) {
+function foo(x: Array<string>) {
   return x;
 }
 
-function bar(x: t.String[]) {
+function bar(x: string[]) {
   return x;
 }
 
-function baz(x: Array<string>) {
-  return x;
-}
-
-function foobaz(x: Array<Promise<T>>) {
+function baz(x: Array<Promise<T>>) {
   return x;
 }

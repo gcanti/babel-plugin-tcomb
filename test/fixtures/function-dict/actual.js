@@ -1,4 +1,3 @@
-import t from 'tcomb';
-function foo(x: {[key: t.String]: t.Number}) {
+function foo(x: {[key: string]: number}) {
   return x;
 }

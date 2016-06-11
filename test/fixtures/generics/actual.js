@@ -1,5 +1,1 @@
-import t from 'tcomb';
-
-function foo(p: Promise<string>): void {
-
-}
+function foo(p: Promise<string>): void {}

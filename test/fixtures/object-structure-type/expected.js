@@ -1,31 +1,30 @@
-import t from 'tcomb';
 function foo(x) {
-  _assert(x, t.interface({
-    foo: t.Boolean,
-    y: t.interface({
-      bar: t.String
+  _assert(x, _t.interface({
+    foo: _t.Boolean,
+    y: _t.interface({
+      bar: _t.String
     })
-  }), 'x');
+  }), "x");
 
   const ret = function (x) {
     return { baz: foo, a: { bob: bar } };
   }.call(this, x);
 
-  _assert(ret, t.interface({
-    baz: t.Boolean,
-    a: t.interface({
-      bob: t.String
+  _assert(ret, _t.interface({
+    baz: _t.Boolean,
+    a: _t.interface({
+      bob: _t.String
     })
-  }), 'return value');
+  }), "return value");
 
   return ret;
 }
 
 function getFullName(person) {
-  _assert(person, t.interface({
-    name: t.String,
-    surname: t.String
-  }), 'person');
+  _assert(person, _t.interface({
+    name: _t.String,
+    surname: _t.String
+  }), "person");
 
   return `${ name } ${ surname }`;
 }

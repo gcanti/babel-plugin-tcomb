@@ -1,7 +1,5 @@
-import t from 'tcomb';
-
 function foo(x) {
-  _assert(x, t.tuple([t.String, t.Number]), 'x');
+  _assert(x, _t.tuple([_t.String, _t.Number]), "x");
 
   return x;
 }

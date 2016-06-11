@@ -1,1 +1,2 @@
-export const A = require("tcomb").interface({}, "A");
+import _t from "tcomb";
+export const A = _t.interface({}, "A");

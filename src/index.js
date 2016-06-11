@@ -1,27 +1,32 @@
-const tcombLibraries = {
-  'tcomb': true,
-  'tcomb-validation': true,
-  'tcomb-react': true,
-  'tcomb-form': true,
-  'redux-tcomb': true
-}
-
 const PLUGIN_NAME = 'babel-plugin-tcomb'
 const INTERFACE_COMBINATOR_NAME = 'interface'
 
+//
 // plugin magic types
+//
+
 const MAGIC_REFINEMENT_NAME = '$Refinement'
 const MAGIC_REIFY_NAME = '$Reify'
 
-const reservedNames = {
+const RESERVED_NAMES = {
   [MAGIC_REFINEMENT_NAME]: true,
   [MAGIC_REIFY_NAME]: true
 }
+
+//
+// plugin config
+//
+
+// useful for tests
+const SKIP_HELPERS_OPTION = 'skipHelpers'
+// useful for keeping the models
+const SKIP_ASSERTS_OPTION = 'skipAsserts'
 
 export default function ({ types: t, template }) {
 
   let tcombExpression = null
   let assertHelperName = null
+  let hasTypes = false
   let hasAsserts = false
 
   const assertHelper = expression(`
@@ -37,46 +42,6 @@ export default function ({ types: t, template }) {
   `)
 
   const genericsHelper = expression('typeof type !== "undefined" ? type : tcomb.Any')
-
-  //
-  // import helpers
-  //
-
-  function ensureTcombExpression() {
-    if (!tcombExpression) {
-      tcombExpression = t.callExpression(
-        t.identifier('require'),
-        [t.StringLiteral('tcomb')]
-      )
-    }
-  }
-
-  function getTcombExpressionFromImports(node) {
-    for (let i = 0, len = node.specifiers.length; i < len; i++) {
-      const specifier = node.specifiers[i]
-      const found = ( specifier.type === 'ImportSpecifier' && specifier.imported.name === 't' ) || specifier.type === 'ImportDefaultSpecifier'
-      if (found) {
-        return t.identifier(specifier.local.name)
-      }
-    }
-  }
-
-  function getTcombExpressionFromRequires(node) {
-    const importName = node.init.arguments[0].value
-
-    if (importName === 'tcomb') {
-      return t.identifier(node.id.name)
-    }
-    if (isObjectPattern(node.id)) {
-      for (let i = 0, len = node.id.properties.length; i < len; i++) {
-        const property = node.id.properties[i]
-        if (property.key.name === 't') {
-          return t.identifier(property.key.name)
-        }
-      }
-    }
-    return t.identifier(node.id.name + '.t')
-  }
 
   //
   // combinators
@@ -149,13 +114,6 @@ export default function ({ types: t, template }) {
     return intersection
   }
 
-  // function getFuncCombinator(domain, codomain, name) {
-  //   return t.callExpression(
-  //     t.memberExpression(tcombExpression, t.identifier('func')),
-  //     addTypeName([t.arrayExpression(domain), codomain], name)
-  //   )
-  // }
-
   function getInterfaceCombinator(props, name) {
     return t.callExpression(
       t.memberExpression(tcombExpression, t.identifier(INTERFACE_COMBINATOR_NAME)),
@@ -169,6 +127,10 @@ export default function ({ types: t, template }) {
 
   function getFunctionType() {
     return t.memberExpression(tcombExpression, t.identifier('Function'))
+  }
+
+  function getObjectType() {
+    return t.memberExpression(tcombExpression, t.identifier('Object'))
   }
 
   function getNumberType() {
@@ -264,75 +226,81 @@ export default function ({ types: t, template }) {
     return getExpressionFromGenericTypeAnnotation(annotation.typeParameters.params[0].argument.id)
   }
 
-  function isGeneric(name, typeParameters) {
+  function isTypeParameter(name, typeParameters) {
     return typeParameters && typeParameters.hasOwnProperty(name)
   }
 
   function shouldReturnAnyType(typeParameters, name) {
-    return isGeneric(name, typeParameters)
+    return isTypeParameter(name, typeParameters) // this plugin doesn't handle generics by design
       // Flow magic types
       || name === '$Shape'
       || name === '$Keys'
       || name === '$Diff'
   }
 
-  function getGenericTypeAnnotation({ annotation, name, typeParameters }) {
-    const typeName = annotation.id.name
-    if (typeName === 'Array') {
+  function getGenericTypeAnnotation({ annotation, typeName, typeParameters }) {
+    const name = annotation.id.name
+    if (name === 'Array') {
       if (!annotation.typeParameters || annotation.typeParameters.params.length !== 1) {
         throw new Error(`Unsupported Array type annotation: incorrect number of type parameters (expected 1)`)
       }
       const typeParameter = annotation.typeParameters.params[0]
-      return getListCombinator(getType({ annotation: typeParameter, typeParameters }), name)
+      return getListCombinator(getType({ annotation: typeParameter, typeParameters }), typeName)
     }
-    if (shouldReturnAnyType(typeParameters, typeName)) {
+    if (name === 'Function') {
+      return getFunctionType()
+    }
+    if (name === 'Object') {
+      return getObjectType()
+    }
+    if (shouldReturnAnyType(typeParameters, name)) {
       return getAnyType()
     }
     const gta = getExpressionFromGenericTypeAnnotation(annotation.id)
-    if (typeName === MAGIC_REFINEMENT_NAME) {
+    if (name === MAGIC_REFINEMENT_NAME) {
       gta._refinementPredicateId = getRefinementPredicateId(annotation)
     }
     return gta
   }
 
-  function getType({ annotation, name, typeParameters }) {
+  function getType({ annotation, typeName, typeParameters }) {
     switch (annotation.type) {
 
       case 'GenericTypeAnnotation' :
-        return getGenericTypeAnnotation({ annotation, name, typeParameters })
+        return getGenericTypeAnnotation({ annotation, typeName, typeParameters })
 
       case 'ArrayTypeAnnotation' :
-        return getListCombinator(getType({ annotation: annotation.elementType, typeParameters }), name)
+        return getListCombinator(getType({ annotation: annotation.elementType, typeParameters }), typeName)
 
       case 'NullableTypeAnnotation' :
-        return getMaybeCombinator(getType({ annotation: annotation.typeAnnotation, typeParameters }), name)
+        return getMaybeCombinator(getType({ annotation: annotation.typeAnnotation, typeParameters }), typeName)
 
       case 'TupleTypeAnnotation' :
-        return getTupleCombinator(annotation.types.map(type => getType({ annotation: type, typeParameters })), name)
+        return getTupleCombinator(annotation.types.map(annotation => getType({ annotation, typeParameters })), typeName)
 
       case 'UnionTypeAnnotation' :
         // handle enums
         if (annotation.types.every(n => n.type === 'StringLiteralTypeAnnotation')) {
-          return getEnumsCombinator(annotation.types.map(n => n.value), name)
+          return getEnumsCombinator(annotation.types.map(n => n.value), typeName)
         }
-        return getUnionCombinator(annotation.types.map(type => getType({ annotation: type, typeParameters })), name)
+        return getUnionCombinator(annotation.types.map(annotation => getType({ annotation, typeParameters })), typeName)
 
       case 'ObjectTypeAnnotation' :
         if (annotation.indexers.length === 1) {
           return getDictCombinator(
             getType({ annotation: annotation.indexers[0].key, typeParameters }),
             getType({ annotation: annotation.indexers[0].value, typeParameters }),
-            name
+            typeName
           )
         }
-        return getInterfaceCombinator(getObjectExpression(annotation.properties, typeParameters), name)
+        return getInterfaceCombinator(getObjectExpression(annotation.properties, typeParameters), typeName)
 
       case 'IntersectionTypeAnnotation' :
-        return getIntersectionCombinator(annotation.types.map(type => getType({ annotation: type, typeParameters })), name)
+        return getIntersectionCombinator(annotation.types.map(annotation => getType({ annotation, typeParameters })), typeName)
 
       case 'FunctionTypeAnnotation' :
         return getFunctionType()
-        // return getFuncCombinator(annotation.params.map((param) => getType(param.typeAnnotation)), getType(annotation.returnType), name)
+        // return getFuncCombinator(annotation.params.map((param) => getType(param.typeAnnotation)), getType(annotation.returnType), typeName)
 
       case 'NumberTypeAnnotation' :
         return getNumberType()
@@ -354,10 +322,10 @@ export default function ({ types: t, template }) {
         return getAnyType()
 
       case 'StringLiteralTypeAnnotation' :
-        return getEnumsCombinator([annotation.value], name)
+        return getEnumsCombinator([annotation.value], typeName)
 
       case 'NumericLiteralTypeAnnotation' :
-        return getNumericLiteralType(annotation.value, name)
+        return getNumericLiteralType(annotation.value, typeName)
 
       default :
         throw new Error(`Unsupported type annotation: ${annotation.type}`)
@@ -371,20 +339,19 @@ export default function ({ types: t, template }) {
     return id.name
   }
 
-  function getAssert({ id, optional, typeAnnotation, argumentName }, typeParameters) {
+  function getAssert({ id, optional, annotation, name }, typeParameters) {
     hasAsserts = true
-    let type = getType({ annotation: typeAnnotation, typeParameters })
+    let type = getType({ annotation, typeParameters })
     if (optional) {
       type = getMaybeCombinator(type)
     }
-    argumentName = argumentName || t.stringLiteral(getArgumentName(id))
+    name = name || t.stringLiteral(getArgumentName(id))
     if (type.type === 'Identifier') {
-      ensureTcombExpression()
       type = genericsHelper({ tcomb: tcombExpression, type })
     }
     return t.expressionStatement(t.callExpression(
       assertHelperName,
-      [id, type, argumentName]
+      [id, type, name]
     ))
   }
 
@@ -401,24 +368,19 @@ export default function ({ types: t, template }) {
         return {
           id: param.argument,
           optional: param.optional,
-          typeAnnotation: param.typeAnnotation.typeAnnotation
+          annotation: param.typeAnnotation.typeAnnotation
         }
       }
       return {
         id: t.identifier(isObjectPattern(param) ? 'arguments[' + i + ']' : param.name),
         optional: param.optional,
-        typeAnnotation: param.typeAnnotation.typeAnnotation
+        annotation: param.typeAnnotation.typeAnnotation
       }
     }
   }
 
   function getFunctionArgumentCheckExpressions(node, typeParameters) {
     const params = node.params.map(getParam).filter(x => x)
-
-    if (params.length > 0) {
-      ensureTcombExpression()
-    }
-
     return params.map(param => getAssert(param, typeParameters))
   }
 
@@ -451,8 +413,8 @@ export default function ({ types: t, template }) {
 
     const assert = getAssert({
       id,
-      typeAnnotation: node.returnType.typeAnnotation,
-      argumentName: t.stringLiteral('return value')
+      annotation: node.returnType.typeAnnotation,
+      name: t.stringLiteral('return value')
     }, typeParameters)
 
     return [
@@ -490,7 +452,7 @@ export default function ({ types: t, template }) {
         node.id,
         getType({
           annotation: node.right,
-          name: t.stringLiteral(node.id.name),
+          typeName: t.stringLiteral(node.id.name),
           typeParameters
         })
       )
@@ -500,14 +462,14 @@ export default function ({ types: t, template }) {
   function getInterfaceDefinition(path) {
     const node = path.node
     const typeParameters = getTypeParameters(path)
-    const name = t.stringLiteral(node.id.name)
+    const typeName = t.stringLiteral(node.id.name)
     if (node.extends.length === 0) {
       return t.variableDeclaration('const', [
         t.variableDeclarator(
           node.id,
           getType({
             annotation: node.body,
-            name,
+            typeName,
             typeParameters
           })
         )
@@ -532,7 +494,7 @@ export default function ({ types: t, template }) {
             t.memberExpression(t.memberExpression(tcombExpression, t.identifier(INTERFACE_COMBINATOR_NAME)), t.identifier('extend')),
             [
               t.arrayExpression(mixins.map(inter => inter.id).concat(props)),
-              name
+              typeName
             ]
           )
         )
@@ -546,7 +508,7 @@ export default function ({ types: t, template }) {
 
   function preventReservedNameUsage(path) {
     const name = path.node.id.name
-    if (name in reservedNames) {
+    if (name in RESERVED_NAMES) {
       buildCodeFrameError(path, new Error(`${name} is a reserved interface name for ${PLUGIN_NAME}`))
     }
   }
@@ -560,18 +522,22 @@ export default function ({ types: t, template }) {
 
       Program: {
         enter(path) {
-          // Ensure we reset the import between each file so that our guard
-          // of the import works correctly.
-          tcombExpression = null
+          tcombExpression = path.scope.generateUidIdentifier('t')
           hasAsserts = false
+          hasTypes = false
           assertHelperName = path.scope.generateUidIdentifier('assert')
         },
         exit(path, state) {
-          if (state.opts['skipHelpers'] || state.opts['skipAsserts']) {
-            return
+          const isAssertHelperRequired = hasAsserts && !state.opts[SKIP_ASSERTS_OPTION] && !state.opts[SKIP_HELPERS_OPTION]
+
+          if (hasTypes || isAssertHelperRequired) {
+            path.node.body.unshift(t.ImportDeclaration(
+              [t.importDefaultSpecifier(tcombExpression)],
+              t.stringLiteral('tcomb')
+            ))
           }
-          ensureTcombExpression()
-          if (hasAsserts) {
+
+          if (isAssertHelperRequired) {
             path.node.body.push(assertHelper({
               assert: assertHelperName,
               tcomb: tcombExpression
@@ -581,25 +547,10 @@ export default function ({ types: t, template }) {
       },
 
       ImportDeclaration(path) {
-        const { node } = path
-        if (!tcombExpression && tcombLibraries.hasOwnProperty(node.source.value)) {
-          tcombExpression = getTcombExpressionFromImports(node)
-        }
+        const node = path.node
         // prevent transform-flow-strip-types
         if (node.importKind === 'type') {
           node.importKind = 'value'
-        }
-      },
-
-      VariableDeclarator({ node }) {
-        if (node.init && node.init.type &&
-            node.init.type === 'CallExpression' &&
-            node.init.callee.name === 'require' &&
-            node.init.arguments &&
-            node.init.arguments.length > 0 &&
-            node.init.arguments[0].type === 'StringLiteral' &&
-            tcombLibraries.hasOwnProperty(node.init.arguments[0].value)) {
-          tcombExpression = getTcombExpressionFromRequires(node)
         }
       },
 
@@ -613,12 +564,12 @@ export default function ({ types: t, template }) {
 
       TypeAlias(path) {
         preventReservedNameUsage(path)
-        ensureTcombExpression()
+        hasTypes = true
         path.replaceWith(getTypeAliasDefinition(path))
       },
 
       TypeCastExpression(path) {
-        const { node } = path
+        const node = path.node
         // handle runtime type introspection
         if (node.typeAnnotation &&
             node.typeAnnotation.typeAnnotation &&
@@ -634,23 +585,23 @@ export default function ({ types: t, template }) {
         else {
           path.replaceWith(getAssert({
             id: node.expression,
-            typeAnnotation: node.typeAnnotation.typeAnnotation
+            annotation: node.typeAnnotation.typeAnnotation
           }))
         }
       },
 
       InterfaceDeclaration(path) {
         preventReservedNameUsage(path)
-        ensureTcombExpression()
+        hasTypes = true
         path.replaceWith(getInterfaceDefinition(path))
       },
 
       Function(path, state) {
-        if (state.opts['skipAsserts']) {
+        if (state.opts[SKIP_ASSERTS_OPTION]) {
           return
         }
 
-        const { node } = path
+        const node = path.node
 
         try {
           // Firstly let's replace arrow function expressions into
@@ -663,7 +614,6 @@ export default function ({ types: t, template }) {
           // If we have a return type then we will wrap our entire function
           // body and insert a type check on the returned value.
           if (node.returnType) {
-            ensureTcombExpression()
             path.get('body').replaceWithMultiple(
               getWrappedFunctionReturnWithTypeCheck(node)
             )

@@ -173,7 +173,7 @@ describe('emit asserts for: ', () => {
     if ((caseName in skipTests)) {
       return
     }
-    if (!(caseName in { 'without-import': 1 })) {
+    if (!(caseName in { 'recursive-type': 1 })) {
       // return
     }
     it(`should ${caseName.split('-').join(' ')}`, () => {

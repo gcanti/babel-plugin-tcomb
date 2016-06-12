@@ -1,3 +1,13 @@
+/*! @preserve
+ *
+ * babel-plugin-tcomb - Babel plugin for static and runtime type checking using Flow and tcomb
+ *
+ * The MIT License (MIT)
+ *
+ * Copyright (c) 2016 Giulio Canti
+ *
+ */
+
 const PLUGIN_NAME = 'babel-plugin-tcomb'
 const INTERFACE_COMBINATOR_NAME = 'interface'
 
@@ -118,6 +128,13 @@ export default function ({ types: t, template }) {
     return t.callExpression(
       t.memberExpression(tcombExpression, t.identifier(INTERFACE_COMBINATOR_NAME)),
       addTypeName([props], name)
+    )
+  }
+
+  function getDeclareCombinator(name) {
+    return t.callExpression(
+      t.memberExpression(tcombExpression, t.identifier('declare')),
+      [name]
     )
   }
 
@@ -447,32 +464,60 @@ export default function ({ types: t, template }) {
   function getTypeAliasDefinition(path) {
     const node = path.node
     const typeParameters = getTypeParameters(path)
+    const isRecursive = isRecursiveType(node)
+    const args = {
+      annotation: node.right,
+      typeParameters
+    }
+
+    if (isRecursive) {
+      return [
+        defineDeclareCombinator(node),
+        t.callExpression(
+          t.memberExpression(node.id, t.identifier('define')),
+          [getType(args)]
+        )
+      ]
+    }
+
+    args.typeName = t.stringLiteral(node.id.name)
     return t.variableDeclaration('const', [
-      t.variableDeclarator(
-        node.id,
-        getType({
-          annotation: node.right,
-          typeName: t.stringLiteral(node.id.name),
-          typeParameters
-        })
-      )
+      t.variableDeclarator(node.id, getType(args))
+    ])
+  }
+
+  function defineDeclareCombinator(node) {
+    return t.variableDeclaration('const', [
+      t.variableDeclarator(node.id, getDeclareCombinator(t.stringLiteral(node.id.name)))
     ])
   }
 
   function getInterfaceDefinition(path) {
     const node = path.node
-    const typeParameters = getTypeParameters(path)
     const typeName = t.stringLiteral(node.id.name)
+    const typeParameters = getTypeParameters(path)
+    const isRecursive = isRecursiveType(node)
+
     if (node.extends.length === 0) {
+
+      const args = {
+        annotation: node.body,
+        typeParameters
+      }
+
+      if (isRecursive) {
+        return [
+          defineDeclareCombinator(node),
+          t.callExpression(
+            t.memberExpression(node.id, t.identifier('define')),
+            [getType(args)]
+          )
+        ]
+      }
+
+      args.typeName = typeName
       return t.variableDeclaration('const', [
-        t.variableDeclarator(
-          node.id,
-          getType({
-            annotation: node.body,
-            typeName,
-            typeParameters
-          })
-        )
+        t.variableDeclarator(node.id, getType(args))
       ])
     }
     else {
@@ -487,6 +532,24 @@ export default function ({ types: t, template }) {
           props = getRefinementCombinator(props, getRefinementPredicateId(refinements[i]))
         }
       }
+
+      if (isRecursive) {
+        return [
+          defineDeclareCombinator(node),
+          t.callExpression(
+            t.memberExpression(node.id, t.identifier('define')),
+            [
+              t.callExpression(
+                t.memberExpression(t.memberExpression(tcombExpression, t.identifier(INTERFACE_COMBINATOR_NAME)), t.identifier('extend')),
+                [
+                  t.arrayExpression(mixins.map(inter => inter.id).concat(props))
+                ]
+              )
+            ]
+          )
+        ]
+      }
+
       return t.variableDeclaration('const', [
         t.variableDeclarator(
           node.id,
@@ -511,6 +574,10 @@ export default function ({ types: t, template }) {
     if (name in RESERVED_NAMES) {
       buildCodeFrameError(path, new Error(`${name} is a reserved interface name for ${PLUGIN_NAME}`))
     }
+  }
+
+  function isRecursiveType(node) {
+    return Array.isArray(node.leadingComments) && node.leadingComments.some(comment => /recursive/.test(comment.value))
   }
 
   //
@@ -565,7 +632,8 @@ export default function ({ types: t, template }) {
       TypeAlias(path) {
         preventReservedNameUsage(path)
         hasTypes = true
-        path.replaceWith(getTypeAliasDefinition(path))
+        const type = getTypeAliasDefinition(path)
+        Array.isArray(type) ? path.replaceWithMultiple(type) : path.replaceWith(type)
       },
 
       TypeCastExpression(path) {
@@ -593,7 +661,8 @@ export default function ({ types: t, template }) {
       InterfaceDeclaration(path) {
         preventReservedNameUsage(path)
         hasTypes = true
-        path.replaceWith(getInterfaceDefinition(path))
+        const type = getInterfaceDefinition(path)
+        Array.isArray(type) ? path.replaceWithMultiple(type) : path.replaceWith(type)
       },
 
       Function(path, state) {

@@ -131,6 +131,18 @@ export function loadUser(userId: string): Promise<User> {
 }
 ```
 
+## Recursive types
+
+Just add a `// recursive` comment on top:
+
+```js
+// recursive
+type Path = {
+  node: Node,
+  parentPath: Path
+};
+```
+
 ## Type-checking React
 
 Using [tcomb-react](https://github.com/gcanti/tcomb-react):

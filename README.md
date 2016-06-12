@@ -1,8 +1,12 @@
+Babel plugin for static and runtime type checking using Flow and tcomb.
+
+**Tools**
+
 [Flow](https://flowtype.org/) is a static type checker for JavaScript.
 
 [tcomb](https://github.com/gcanti/tcomb) is a library for Node.js and the browser which allows you to check the types of JavaScript values at runtime with a simple and concise syntax. It's great for Domain Driven Design and for adding safety to your internal code.
 
-# Runtime type checking, why?
+**Runtime type checking (tcomb), why?**
 
 - you don't want or you can't use `Flow`
 - you want refinement types
@@ -10,11 +14,34 @@
 - you want to enforce immutability
 - you want to leverage the runtime type introspection provided by `tcomb`'s types
 
-# Static type checking, Flow compatible
+**Static type checking (Flow)**
 
 `babel-plugin-tcomb` is `Flow` compatible, this means that you can run them side by side, statically checking your code with `Flow` and let `tcomb` catching the remaining bugs at runtime.
 
+# Setup
+
+First, install via npm.
+
+```sh
+npm install --save tcomb
+npm install --save-dev babel-plugin-tcomb
+```
+
+Then, in your babel configuration (usually in your `.babelrc` file), add (at least) the following plugins:
+
+```js
+{
+  "plugins" : [
+    "syntax-flow",
+    "tcomb",
+    "transform-flow-strip-types"
+  ]
+}
+```
+
 # How it works
+
+> **Important**. `tcomb` must be `require`able
 
 **Example 1**. Type checking functions.
 
@@ -37,7 +64,7 @@ function sum(a, b) {
 }
 ```
 
-**Example 2**. Defining models.
+**Example 2**. Defining domain models.
 
 ```js
 interface Person {
@@ -57,7 +84,7 @@ var Person = t.interface({
 }, 'Person');
 ```
 
-# Defining refinements (*)
+## Defining refinements (*)
 
 In order to define [refinement types](https://github.com/gcanti/tcomb/blob/master/docs/API.md#the-refinement-combinator) you can use the `$Refinement` type providing a predicate:
 
@@ -79,7 +106,7 @@ foo(2.1) // flow ok, tcomb throws [tcomb] Invalid value 2.1 supplied to n: Integ
 foo('a') // flow throws, tcomb throws
 ```
 
-# Runtime type introspection (*)
+## Runtime type introspection (*)
 
 Check out the [meta object](https://github.com/gcanti/tcomb/blob/master/docs/API.md#the-meta-object) in the tcomb documentation.
 
@@ -94,7 +121,7 @@ console.log(ReifiedPerson.meta) // => { kind: 'interface', props: ... }
 
 > (*) these are considered (inevitable and useful) hacks
 
-# Validating (at runtime) the IO boundary using typecasts
+## Validating (at runtime) the IO boundary using typecasts
 
 ```js
 type User = { name: string };
@@ -104,7 +131,7 @@ export function loadUser(userId: string): Promise<User> {
 }
 ```
 
-# Type-checking React
+## Type-checking React
 
 Using [tcomb-react](https://github.com/gcanti/tcomb-react):
 
@@ -150,31 +177,23 @@ Detected errors (1):
   1. Invalid value undefined supplied to String
 ```
 
+Additional babel configuration:
+
+```js
+{
+  "presets": ["es2015", "react"],
+  "plugins" : [
+    "tcomb",
+    "transform-decorators-legacy"
+  ]
+}
+```
+
 # Caveats
 
 - `tcomb` must be `require`able
 - generics are not handled (`Flow`'s responsability)
 
-# Setup
-
-First, install via npm.
-
-```sh
-npm install --save-dev babel-plugin-tcomb
-```
-
-Then, in your babel configuration (usually in your `.babelrc` file), add (at least) the following plugins:
-
-```js
-{
-  "plugins" : [
-    "syntax-flow",
-    "tcomb",
-    "transform-flow-strip-types"
-  ]
-}
-```
-
 # Plugin config
 
-- `skipAsserts` removes the asserts but keeps the models
+- `skipAsserts: boolean = false` removes the asserts but keeps the models

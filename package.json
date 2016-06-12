@@ -1,7 +1,7 @@
 {
   "name": "babel-plugin-tcomb",
   "version": "0.3.0",
-  "description": "Babel plugin for runtime type checking using tcomb",
+  "description": "Babel plugin for static and runtime type checking using Flow and tcomb",
   "main": "lib/index.js",
   "files": [
     "lib"

@@ -34,8 +34,8 @@ const SKIP_ASSERTS_OPTION = 'skipAsserts'
 
 export default function ({ types: t, template }) {
 
-  let tcombExpression = null
-  let assertHelperName = null
+  let tcombId = null
+  let assertId = null
   let hasTypes = false
   let hasAsserts = false
 
@@ -59,49 +59,49 @@ export default function ({ types: t, template }) {
 
   function getListCombinator(type, name) {
     return t.callExpression(
-      t.memberExpression(tcombExpression, t.identifier('list')),
+      t.memberExpression(tcombId, t.identifier('list')),
       addTypeName([type], name)
     )
   }
 
   function getMaybeCombinator(type, name) {
     return t.callExpression(
-      t.memberExpression(tcombExpression, t.identifier('maybe')),
+      t.memberExpression(tcombId, t.identifier('maybe')),
       addTypeName([type], name)
     )
   }
 
   function getTupleCombinator(types, name) {
     return t.callExpression(
-      t.memberExpression(tcombExpression, t.identifier('tuple')),
+      t.memberExpression(tcombId, t.identifier('tuple')),
       addTypeName([t.arrayExpression(types)], name)
     )
   }
 
   function getUnionCombinator(types, name) {
     return t.callExpression(
-      t.memberExpression(tcombExpression, t.identifier('union')),
+      t.memberExpression(tcombId, t.identifier('union')),
       addTypeName([t.arrayExpression(types)], name)
     )
   }
 
   function getEnumsCombinator(enums, name) {
     return t.callExpression(
-      t.memberExpression(t.memberExpression(tcombExpression, t.identifier('enums')), t.identifier('of')),
+      t.memberExpression(t.memberExpression(tcombId, t.identifier('enums')), t.identifier('of')),
       addTypeName([t.arrayExpression(enums.map(e => t.stringLiteral(e)))], name)
     )
   }
 
   function getDictCombinator(domain, codomain, name) {
     return t.callExpression(
-      t.memberExpression(tcombExpression, t.identifier('dict')),
+      t.memberExpression(tcombId, t.identifier('dict')),
       addTypeName([domain, codomain], name)
     )
   }
 
   function getRefinementCombinator(type, predicate, name) {
     return t.callExpression(
-      t.memberExpression(tcombExpression, t.identifier('refinement')),
+      t.memberExpression(tcombId, t.identifier('refinement')),
       addTypeName([type, predicate], name)
     )
   }
@@ -111,7 +111,7 @@ export default function ({ types: t, template }) {
     const refinements = types.filter(t => t._refinementPredicateId)
     let intersection = intersections.length > 1 ?
       t.callExpression(
-        t.memberExpression(tcombExpression, t.identifier('intersection')),
+        t.memberExpression(tcombId, t.identifier('intersection')),
         addTypeName([t.arrayExpression(intersections)], name)
       ) :
       intersections[0]
@@ -126,14 +126,14 @@ export default function ({ types: t, template }) {
 
   function getInterfaceCombinator(props, name) {
     return t.callExpression(
-      t.memberExpression(tcombExpression, t.identifier(INTERFACE_COMBINATOR_NAME)),
+      t.memberExpression(tcombId, t.identifier(INTERFACE_COMBINATOR_NAME)),
       addTypeName([props], name)
     )
   }
 
   function getDeclareCombinator(name) {
     return t.callExpression(
-      t.memberExpression(tcombExpression, t.identifier('declare')),
+      t.memberExpression(tcombId, t.identifier('declare')),
       [name]
     )
   }
@@ -143,41 +143,41 @@ export default function ({ types: t, template }) {
   //
 
   function getFunctionType() {
-    return t.memberExpression(tcombExpression, t.identifier('Function'))
+    return t.memberExpression(tcombId, t.identifier('Function'))
   }
 
   function getObjectType() {
-    return t.memberExpression(tcombExpression, t.identifier('Object'))
+    return t.memberExpression(tcombId, t.identifier('Object'))
   }
 
   function getNumberType() {
-    return t.memberExpression(tcombExpression, t.identifier('Number'))
+    return t.memberExpression(tcombId, t.identifier('Number'))
   }
 
   function getStringType() {
-    return t.memberExpression(tcombExpression, t.identifier('String'))
+    return t.memberExpression(tcombId, t.identifier('String'))
   }
 
   function getBooleanType() {
-    return t.memberExpression(tcombExpression, t.identifier('Boolean'))
+    return t.memberExpression(tcombId, t.identifier('Boolean'))
   }
 
   function getVoidType() {
-    return t.memberExpression(tcombExpression, t.identifier('Nil'))
+    return t.memberExpression(tcombId, t.identifier('Nil'))
   }
 
   function getNullType() {
-    return t.memberExpression(tcombExpression, t.identifier('Nil'))
+    return t.memberExpression(tcombId, t.identifier('Nil'))
   }
 
   function getAnyType() {
-    return t.memberExpression(tcombExpression, t.identifier('Any'))
+    return t.memberExpression(tcombId, t.identifier('Any'))
   }
 
   function getNumericLiteralType(value) {
     const n = t.identifier('n')
     return t.callExpression(
-      t.memberExpression(tcombExpression, t.identifier('refinement')),
+      t.memberExpression(tcombId, t.identifier('refinement')),
       [
         getNumberType(),
         t.functionExpression(null, [n], t.blockStatement([
@@ -364,10 +364,10 @@ export default function ({ types: t, template }) {
     }
     name = name || t.stringLiteral(getArgumentName(id))
     if (type.type === 'Identifier') {
-      type = genericsHelper({ tcomb: tcombExpression, type })
+      type = genericsHelper({ tcomb: tcombId, type })
     }
     return t.expressionStatement(t.callExpression(
-      assertHelperName,
+      assertId,
       [id, type, name]
     ))
   }
@@ -540,7 +540,7 @@ export default function ({ types: t, template }) {
             t.memberExpression(node.id, t.identifier('define')),
             [
               t.callExpression(
-                t.memberExpression(t.memberExpression(tcombExpression, t.identifier(INTERFACE_COMBINATOR_NAME)), t.identifier('extend')),
+                t.memberExpression(t.memberExpression(tcombId, t.identifier(INTERFACE_COMBINATOR_NAME)), t.identifier('extend')),
                 [
                   t.arrayExpression(mixins.map(inter => inter.id).concat(props))
                 ]
@@ -554,7 +554,7 @@ export default function ({ types: t, template }) {
         t.variableDeclarator(
           node.id,
           t.callExpression(
-            t.memberExpression(t.memberExpression(tcombExpression, t.identifier(INTERFACE_COMBINATOR_NAME)), t.identifier('extend')),
+            t.memberExpression(t.memberExpression(tcombId, t.identifier(INTERFACE_COMBINATOR_NAME)), t.identifier('extend')),
             [
               t.arrayExpression(mixins.map(inter => inter.id).concat(props)),
               typeName
@@ -588,29 +588,31 @@ export default function ({ types: t, template }) {
     visitor: {
 
       Program: {
+
         enter(path) {
-          tcombExpression = path.scope.generateUidIdentifier('t')
           hasAsserts = false
           hasTypes = false
-          assertHelperName = path.scope.generateUidIdentifier('assert')
+          tcombId = path.scope.generateUidIdentifier('t')
+          assertId = path.scope.generateUidIdentifier('assert')
         },
+
         exit(path, state) {
           const isAssertHelperRequired = hasAsserts && !state.opts[SKIP_ASSERTS_OPTION] && !state.opts[SKIP_HELPERS_OPTION]
 
           if (hasTypes || isAssertHelperRequired) {
-            path.node.body.unshift(t.ImportDeclaration(
-              [t.importDefaultSpecifier(tcombExpression)],
-              t.stringLiteral('tcomb')
-            ))
+            path.node.body.unshift(
+              t.importDeclaration([t.importDefaultSpecifier(tcombId)], t.stringLiteral('tcomb'))
+            )
           }
 
           if (isAssertHelperRequired) {
             path.node.body.push(assertHelper({
-              assert: assertHelperName,
-              tcomb: tcombExpression
+              assert: assertId,
+              tcomb: tcombId
             }))
           }
         }
+
       },
 
       ImportDeclaration(path) {
@@ -675,7 +677,7 @@ export default function ({ types: t, template }) {
         try {
           // Firstly let's replace arrow function expressions into
           // block statement return structures.
-          if (node.type === "ArrowFunctionExpression" && node.expression) {
+          if (node.type === 'ArrowFunctionExpression' && node.expression) {
             node.expression = false
             node.body = t.blockStatement([t.returnStatement(node.body)])
           }

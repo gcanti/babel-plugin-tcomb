@@ -17,26 +17,60 @@ const skipTests = {
 const fixturesDir = path.join(__dirname, 'fixtures')
 
 describe('_assert helper', () => {
-  it('should emit an _assert helper', () => {
-    const actual = babel.transformFileSync(
-        path.join(fixturesDir, 'assert/actual.js'), {
-          babelrc: false,
-          plugins: [
-            'syntax-flow',
-            [plugin, {
-              skipHelpers: false
-            }],
-            'transform-flow-strip-types'
-          ]
-        }
-      ).code
-    const expected = fs.readFileSync(path.join(fixturesDir, 'assert/expected.js')).toString()
-    assert.equal(trim(actual), trim(expected))
+
+  it('should emit an _assert helper compatible with the current scope', () => {
+    const source = `function _assert(){}
+function foo(x: string) {}
+`
+    const expected = `import _t from "tcomb";
+function _assert() {}
+function foo(x: string) {
+  _assert2(x, _t.String, "x");
+}
+
+function _assert2(x, type, name) {
+  type = type || _t.Any;
+
+  if (_t.isType(type) && type.meta.kind !== 'struct') {
+    type(x, [name + ': ' + _t.getTypeName(type)]);
+  } else if (!(x instanceof type)) {
+    _t.fail('Invalid value ' + _t.stringify(x) + ' supplied to ' + name + ' (expected a ' + _t.getTypeName(type) + ')');
+  }
+
+  return x;
+}`
+    const actual = babel.transform(
+      source, {
+        babelrc: false,
+        plugins: [
+          'syntax-flow',
+          plugin
+        ]
+      }
+    ).code
+    assert.equal(actual, expected)
   })
+
+  it('should not emit an _assert helper if there are no asserts', () => {
+    const source = `function foo(x) {}`
+    const expected = `function foo(x) {}`
+    const actual = babel.transform(
+      source, {
+        babelrc: false,
+        plugins: [
+          'syntax-flow',
+          plugin
+        ]
+      }
+    ).code
+    assert.equal(actual, expected)
+  })
+
 })
 
 describe('refinements', () => {
-  it('should error when a Refinement interface is defined by the user', () => {
+
+  it('should error when a $Refinement interface is defined by the user', () => {
     const source = `
     interface $Refinement {}
     `
@@ -58,7 +92,8 @@ describe('refinements', () => {
       }
     })
   })
-  it('should error when a Refinement type is defined by the user', () => {
+
+  it('should error when a $Refinement type is defined by the user', () => {
     const source = `
     type $Refinement = any;
     `
@@ -80,6 +115,57 @@ describe('refinements', () => {
       }
     })
   })
+
+})
+
+describe('reify', () => {
+
+  it('should error when a $Reify interface is defined by the user', () => {
+    const source = `
+    interface $Reify {}
+    `
+
+    assert.throws(() => {
+      babel.transform(
+        source, {
+          babelrc: false,
+          plugins: [
+            'syntax-flow',
+            plugin
+          ]
+        }
+      )
+    }, err => {
+      if ((err instanceof Error) &&
+        /\$Reify is a reserved interface name for babel-plugin-tcomb/.test(err.message) ) {
+        return true
+      }
+    })
+  })
+
+  it('should error when a $Reify type is defined by the user', () => {
+    const source = `
+    type $Reify = any;
+    `
+
+    assert.throws(() => {
+      babel.transform(
+        source, {
+          babelrc: false,
+          plugins: [
+            'syntax-flow',
+            plugin
+          ]
+        }
+      )
+    }, err => {
+      if ((err instanceof Error) &&
+        /\$Reify is a reserved interface name for babel-plugin-tcomb/.test(err.message) ) {
+        return true
+      }
+    })
+  })
+
 })
 
 describe('emit asserts for: ', () => {
@@ -87,7 +173,7 @@ describe('emit asserts for: ', () => {
     if ((caseName in skipTests)) {
       return
     }
-    if (!(caseName in { 'class-generics': 1 })) {
+    if (!(caseName in { 'recursive-type': 1 })) {
       // return
     }
     it(`should ${caseName.split('-').join(' ')}`, () => {

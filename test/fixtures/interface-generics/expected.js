@@ -1,5 +1,5 @@
-import t from "tcomb";
+import _t from "tcomb";
 
-const T1 = t.interface({
-  name: t.Any
+const T1 = _t.interface({
+  name: _t.Any
 }, "T1");

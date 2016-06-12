@@ -1,5 +1,3 @@
-import t from "tcomb";
-
 interface A {
   a: string;
 }

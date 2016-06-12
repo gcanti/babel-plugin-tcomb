@@ -1,9 +1,7 @@
-import t from 'tcomb';
-
-function foo(x: t.Number, y: t.String): t.String {
+function foo(x: number, y: string): string {
   return x + y;
 }
 
-function bar(x, y: t.String): t.String {
+function bar(x, y: string): string {
   return x + y;
 }

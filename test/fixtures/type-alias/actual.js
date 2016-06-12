@@ -1,5 +1,3 @@
-import t from 'tcomb';
-
 type T1 = {
   name: string
 };

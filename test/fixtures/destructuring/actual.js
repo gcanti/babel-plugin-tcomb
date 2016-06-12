@@ -1,9 +1,7 @@
-import t from 'tcomb';
-
-function foo({ x }: { x: t.String }) {
+function foo({ x }: { x: string }) {
   return bar;
 }
 
-function bar({ a } = {}): t.String {
+function bar({ a } = {}): string {
   return x;
 }

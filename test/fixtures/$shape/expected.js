@@ -1,4 +1,5 @@
-import t from "tcomb";
+import _t from "tcomb";
 
-const A = t.intersection([t.Any, t.Any], "A");
-const B = t.Any;
+const A = _t.intersection([_t.Any, _t.Any], "A");
+
+const B = _t.Any;

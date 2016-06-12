@@ -1,11 +1,15 @@
 {
   "name": "babel-plugin-tcomb",
   "version": "0.3.0",
-  "description": "Babel plugin for runtime type checking using tcomb",
+  "description": "Babel plugin for static and runtime type checking using Flow and tcomb",
   "main": "lib/index.js",
+  "files": [
+    "lib"
+  ],
   "scripts": {
     "lint": "eslint src",
-    "build": "babel --plugins syntax-flow -d ./lib ./src",
+    "build": "babel -d ./lib ./src",
+    "inception": "babel-node inception/index.js",
     "test": "mocha --compilers js:babel-core/register"
   },
   "repository": {
@@ -18,6 +22,9 @@
     "url": "https://github.com/gcanti/babel-plugin-tcomb/issues"
   },
   "homepage": "https://github.com/gcanti/babel-plugin-tcomb",
+  "peerDependencies": {
+    "tcomb": "^3.2.2"
+  },
   "devDependencies": {
     "babel-cli": "6.9.0",
     "babel-core": "6.9.1",

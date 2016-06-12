@@ -1,4 +1,3 @@
-import t from 'tcomb';
-function foo(x: Array<[?t.Number, t.String]>) {
+function foo(x: Array<[?number, string]>) {
   return x;
 }

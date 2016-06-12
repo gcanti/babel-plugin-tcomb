@@ -1,6 +1,5 @@
-import t from 'tcomb';
 function foo(x) {
-  _assert(x, t.intersection([t.Number, t.String]), 'x');
+  _assert(x, _t.intersection([_t.Number, _t.String]), "x");
 
   return x;
 }

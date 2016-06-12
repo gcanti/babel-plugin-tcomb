@@ -1,9 +1,7 @@
-import t from 'tcomb';
-
 function foo({ x }) {
-  _assert(arguments[0], t.interface({
-    x: t.String
-  }), 'arguments[0]');
+  _assert(arguments[0], _t.interface({
+    x: _t.String
+  }), "arguments[0]");
 
   return bar;
 }
@@ -13,7 +11,7 @@ function bar({ a } = {}) {
     return x;
   }.call(this, { a });
 
-  _assert(ret, t.String, 'return value');
+  _assert(ret, _t.String, "return value");
 
   return ret;
 }

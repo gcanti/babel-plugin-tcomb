@@ -1,4 +1,3 @@
-import t from 'tcomb';
-function foo(x: t.Number & t.String) {
+function foo(x: number & string) {
   return x;
 }

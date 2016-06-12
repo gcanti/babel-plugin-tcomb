@@ -1,6 +1,5 @@
-import t from 'tcomb';
 function foo(x) {
-  _assert(x, t.maybe(t.String), 'x');
+  _assert(x, _t.maybe(_t.String), "x");
 
   return x;
 }

@@ -1,7 +1,5 @@
-import t from 'tcomb';
-
 function foo(x) {
-  _assert(x, t.Number, 'x');
+  _assert(x, _t.Number, "x");
 
   return x;
 }

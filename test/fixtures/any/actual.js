@@ -1,4 +1,1 @@
-import t from 'tcomb';
-
-function foo(): any {
-}
+function foo(): any {}

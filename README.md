@@ -104,6 +104,52 @@ export function loadUser(userId: string): Promise<User> {
 }
 ```
 
+# Type-checking React
+
+Using [tcomb-react](https://github.com/gcanti/tcomb-react):
+
+```js
+// @flow
+
+import React from 'react'
+import ReactDOM from 'react-dom'
+import { props } from 'tcomb-react'
+
+type Props = {
+  name: string
+};
+
+@props(Props)
+class Hello extends React.Component<void, Props, void> {
+  render() {
+    return <div>Hello {this.props.name}</div>
+  }
+}
+
+
+ReactDOM.render(<Hello />, document.getElementById('app'))
+```
+
+Flow will throw:
+
+```
+index.js:12
+ 12: class Hello extends React.Component<void, Props, void> {
+                                               ^^^^^ property `name`. Property not found in
+ 19: ReactDOM.render(<Hello />, document.getElementById('app'))
+                     ^^^^^^^^^ props of React element `Hello`
+```
+
+while `tcomb-react` will warn:
+
+```
+Warning: Failed propType: [tcomb] Invalid prop "name" supplied to Hello, should be a String.
+
+Detected errors (1):
+
+  1. Invalid value undefined supplied to String
+```
+
 # Caveats
 
 - `tcomb` must be `require`able

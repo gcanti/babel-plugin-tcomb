@@ -1,17 +1,35 @@
 // recursive
-type Path = {
+type Path1 = {
   node: Node,
-  parentPath: ?Path
+  parentPath: ?Path1
 };
 
 // recursive
-interface Path {
+export type Path2 = {
   node: Node,
-  parentPath: ?Path
+  parentPath: ?Path2
+};
+
+// recursive
+interface Path3 {
+  node: Node,
+  parentPath: ?Path3
 }
 
 // recursive
-interface Path extends A {
+export interface Path4 {
   node: Node,
-  parentPath: ?Path
+  parentPath: ?Path4
+}
+
+// recursive
+interface Path5 extends A {
+  node: Node,
+  parentPath: ?Path5
+}
+
+// recursive
+export interface Path6 extends A {
+  node: Node,
+  parentPath: ?Path6
 }

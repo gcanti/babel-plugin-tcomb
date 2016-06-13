@@ -577,7 +577,24 @@ export default function ({ types: t, template }) {
   }
 
   function isRecursiveType(node) {
-    return Array.isArray(node.leadingComments) && node.leadingComments.some(comment => /recursive/.test(comment.value))
+    return node.isRecursive || ( Array.isArray(node.leadingComments) && node.leadingComments.some(comment => /recursive/.test(comment.value)) )
+  }
+
+  function replaceTypeDefintion(path, definition) {
+    if (Array.isArray(definition)) {
+      if (path.parentPath.node.type === 'ExportNamedDeclaration') {
+        path.parentPath.replaceWithMultiple([
+          t.exportNamedDeclaration(definition[0], []),
+          definition[1]
+        ])
+      }
+      else {
+        path.replaceWithMultiple(definition)
+      }
+    }
+    else {
+      path.replaceWith(definition)
+    }
   }
 
   //
@@ -628,14 +645,20 @@ export default function ({ types: t, template }) {
         // prevent transform-flow-strip-types
         if (node.declaration && ( node.declaration.type === 'TypeAlias' || node.declaration.type === 'InterfaceDeclaration' ) ) {
           node.exportKind = 'value'
+          node.declaration.isRecursive = isRecursiveType(node)
         }
       },
 
       TypeAlias(path) {
         preventReservedNameUsage(path)
         hasTypes = true
-        const type = getTypeAliasDefinition(path)
-        Array.isArray(type) ? path.replaceWithMultiple(type) : path.replaceWith(type)
+        replaceTypeDefintion(path, getTypeAliasDefinition(path))
+      },
+
+      InterfaceDeclaration(path) {
+        preventReservedNameUsage(path)
+        hasTypes = true
+        replaceTypeDefintion(path, getInterfaceDefinition(path))
       },
 
       TypeCastExpression(path) {
@@ -658,13 +681,6 @@ export default function ({ types: t, template }) {
             annotation: node.typeAnnotation.typeAnnotation
           }))
         }
-      },
-
-      InterfaceDeclaration(path) {
-        preventReservedNameUsage(path)
-        hasTypes = true
-        const type = getInterfaceDefinition(path)
-        Array.isArray(type) ? path.replaceWithMultiple(type) : path.replaceWith(type)
       },
 
       Function(path, state) {

@@ -23,8 +23,7 @@ Babel plugin for static and runtime type checking using Flow and tcomb.
 First, install via npm.
 
 ```sh
-npm install --save tcomb
-npm install --save-dev babel-plugin-tcomb
+npm install --save-dev tcomb babel-plugin-tcomb
 ```
 
 Then, in your babel configuration (usually in your `.babelrc` file), add (at least) the following plugins:
@@ -60,7 +59,7 @@ function sum(a, b) {
   _assert(a, t.Number, 'a') // <= runtime type checking
   _assert(b, t.Number, 'b') // <= runtime type checking
 
-  return a +b
+  return a + b
 }
 ```
 
@@ -81,12 +80,12 @@ import t from 'tcomb'
 var Person = t.interface({
   name: t.String,
   surname: t.maybe(t.String)
-}, 'Person');
+}, 'Person')
 ```
 
 ## Defining refinements (*)
 
-In order to define [refinement types](https://github.com/gcanti/tcomb/blob/master/docs/API.md#the-refinement-combinator) you can use the `$Refinement` type providing a predicate:
+In order to define [refinement types](https://github.com/gcanti/tcomb/blob/master/docs/API.md#the-refinement-combinator) you can use the `$Refinement` type, providing a predicate identifier:
 
 ```js
 import type { $Refinement } from 'tcomb'
@@ -141,6 +140,40 @@ type Path = {
   node: Node,
   parentPath: Path
 };
+```
+
+## Type-checking Redux
+
+```js
+import { createStore } from 'redux'
+
+// types
+type State = number;
+type ReduxInitAction = { type: '@@redux/INIT' };
+type Action = ReduxInitAction
+  | { type: 'INCREMENT', delta: number }
+  | { type: 'DECREMENT', delta: number };
+
+function reducer(state: State = 0, action: Action): State {
+  switch(action.type) {
+    case 'INCREMENT' :
+      return state + action.delta
+    case 'DECREMENT' :
+      return state - action.delta
+  }
+  return state
+}
+
+type Store = {
+  dispatch: (action: Action) => any;
+};
+
+const store: Store = createStore(reducer)
+
+store.dispatch({ type: 'INCREMEN', delta: 1 }) // <= typo
+
+// throws [tcomb] Invalid value { "type": "INCREMEN", "delta": 1 } supplied to action: Action
+// Flow throws as well
 ```
 
 ## Type-checking React
@@ -208,4 +241,4 @@ Additional babel configuration:
 
 # Plugin config
 
-- `skipAsserts: boolean = false` removes the asserts but keeps the models
+- `skipAsserts: boolean = false` removes the asserts and keeps the domain models

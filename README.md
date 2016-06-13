@@ -294,6 +294,10 @@ Hello.propTypes = propTypes((({}: any): $Reify<Props>))
 ReactDOM.render(<Hello />, document.getElementById('app'))
 ```
 
+# Definition files
+
+Definition files for `tcomb` and `tcomb-react` are temporarily published [here](https://github.com/gcanti/pantarei).
+
 # Caveats
 
 - `tcomb` must be `require`able

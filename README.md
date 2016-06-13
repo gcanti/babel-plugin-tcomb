@@ -6,7 +6,9 @@ Babel plugin for static and runtime type checking using Flow and tcomb.
 
 [tcomb](https://github.com/gcanti/tcomb) is a library for Node.js and the browser which allows you to check the types of JavaScript values at runtime with a simple and concise syntax. It's great for Domain Driven Design and for adding safety to your internal code.
 
-**Runtime type checking (tcomb), why?**
+# Why?
+
+**Runtime type checking (tcomb)**
 
 - you don't want or you can't use `Flow`
 - you want refinement types
@@ -18,12 +20,21 @@ Babel plugin for static and runtime type checking using Flow and tcomb.
 
 `babel-plugin-tcomb` is `Flow` compatible, this means that you can run them side by side, statically checking your code with `Flow` and let `tcomb` catching the remaining bugs at runtime.
 
+# Gentle migration path
+
+You can add type safety to your untyped codebase gradually:
+
+- first, add type annotations where you think they are most useful, file by file, leveraging the runtime type safety provided by `tcomb`
+- then, when you feel comfortable, turn on `Flow` and unleash the power of static type checking
+- third, for even more type safety, define your refinement types and validate the IO boundary
+
 # Setup
 
 First, install via npm.
 
 ```sh
-npm install --save-dev tcomb babel-plugin-tcomb
+npm install --save tcomb
+npm install --save-dev gcanti/babel-plugin-tcomb#master # until v0.3 will be released
 ```
 
 Then, in your babel configuration (usually in your `.babelrc` file), add (at least) the following plugins:
@@ -38,52 +49,78 @@ Then, in your babel configuration (usually in your `.babelrc` file), add (at lea
 }
 ```
 
+**Important**. `tcomb` must be `require`able
+
 # How it works
 
-> **Important**. `tcomb` must be `require`able
-
-**Example 1**. Type checking functions.
+First, add type annotations.
 
 ```js
+// index.js
+
 function sum(a: number, b: number) {
   return a + b
 }
+
+sum(1, 'a') // <= typo
 ```
 
-compiles to:
+Then run `Flow` (static type checking):
+
+```
+index.js:7
+  7: sum(1, 'a')
+     ^^^^^^^^^^^ function call
+  7: sum(1, 'a')
+            ^^^ string. This type is incompatible with
+  3: function sum(a: number, b: number) {
+                                ^^^^^^ number
+```
+
+or refresh your browser and look at the console (runtime type checking):
+
+```
+Uncaught TypeError: [tcomb] Invalid value "a" supplied to b: Number
+```
+
+## Domain models
 
 ```js
-import t from 'tcomb'
+// index.js
 
-function sum(a, b) {
-  _assert(a, t.Number, 'a') // <= runtime type checking
-  _assert(b, t.Number, 'b') // <= runtime type checking
+type Person = {
+  name: string, // required string
+  surname?: string, // optional string
+  age: number,
+  tags: Array<string>
+};
 
-  return a + b
+function getFullName(person: Person) {
+  return `${person.name} ${person.surname}`
 }
+
+getFullName({ surname: 'Canti' })
 ```
 
-**Example 2**. Defining domain models.
+`Flow`:
 
-```js
-interface Person {
-  name: string;
-  surname: ?string
-}
+```
+index.js:14
+ 14: getFullName({
+     ^ function call
+ 10: function getFullName(person: Person) {
+                                  ^^^^^^ property `name`. Property not found in
+ 14: getFullName({
+                 ^ object literal
 ```
 
-compiles to:
+`tcomb`:
 
-```js
-import t from 'tcomb'
-
-var Person = t.interface({
-  name: t.String,
-  surname: t.maybe(t.String)
-}, 'Person')
+```
+TypeError: [tcomb] Invalid value undefined supplied to person: Person/name: String
 ```
 
-## Defining refinements (*)
+## Refinements
 
 In order to define [refinement types](https://github.com/gcanti/tcomb/blob/master/docs/API.md#the-refinement-combinator) you can use the `$Refinement` type, providing a predicate identifier:
 
@@ -105,7 +142,7 @@ foo(2.1) // flow ok, tcomb throws [tcomb] Invalid value 2.1 supplied to n: Integ
 foo('a') // flow throws, tcomb throws
 ```
 
-## Runtime type introspection (*)
+## Runtime type introspection
 
 Check out the [meta object](https://github.com/gcanti/tcomb/blob/master/docs/API.md#the-meta-object) in the tcomb documentation.
 
@@ -117,8 +154,6 @@ type Person = { name: string };
 const ReifiedPerson = (({}: any): $Reify<Person>)
 console.log(ReifiedPerson.meta) // => { kind: 'interface', props: ... }
 ```
-
-> (*) these are considered (inevitable and useful) hacks
 
 ## Validating (at runtime) the IO boundary using typecasts
 
@@ -142,7 +177,7 @@ type Path = {
 };
 ```
 
-## Type-checking Redux
+# Type-checking Redux
 
 ```js
 import { createStore } from 'redux'
@@ -176,7 +211,7 @@ store.dispatch({ type: 'INCREMEN', delta: 1 }) // <= typo
 // Flow throws as well
 ```
 
-## Type-checking React
+# Type-checking React
 
 Using [tcomb-react](https://github.com/gcanti/tcomb-react):
 
@@ -202,7 +237,7 @@ class Hello extends React.Component<void, Props, void> {
 ReactDOM.render(<Hello />, document.getElementById('app'))
 ```
 
-Flow will throw:
+`Flow` will throw:
 
 ```
 index.js:12
@@ -234,10 +269,35 @@ Additional babel configuration:
 }
 ```
 
+### Without decorators
+
+```js
+// @flow
+
+import React from 'react'
+import ReactDOM from 'react-dom'
+import { propTypes } from 'tcomb-react'
+import type { $Reify } from 'tcomb'
+
+type Props = {
+  name: string
+};
+
+class Hello extends React.Component<void, Props, void> {
+  render() {
+    return <div>Hello {this.props.name}</div>
+  }
+}
+
+Hello.propTypes = propTypes((({}: any): $Reify<Props>))
+
+ReactDOM.render(<Hello />, document.getElementById('app'))
+```
+
 # Caveats
 
 - `tcomb` must be `require`able
-- generics are not handled (`Flow`'s responsability)
+- type parameters (aka generics) are not handled (`Flow`'s responsability)
 
 # Plugin config
 

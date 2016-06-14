@@ -127,10 +127,10 @@ In order to define [refinement types](https://github.com/gcanti/tcomb/blob/maste
 ```js
 import type { $Refinement } from 'tcomb'
 
-// define you predicate...
+// define your predicate...
 const isInteger = n => n % 2 === 0
 
-// ...and pass it to the suitable intersection type involving the $Refinement type
+// ...and pass it to the suitable intersection type
 type Integer = number & $Refinement<typeof isInteger>;
 
 function foo(n: Integer) {
@@ -141,6 +141,8 @@ foo(2)   // flow ok, tcomb ok
 foo(2.1) // flow ok, tcomb throws [tcomb] Invalid value 2.1 supplied to n: Integer
 foo('a') // flow throws, tcomb throws
 ```
+
+In order to enable this feature add the [`tcomb` definition file](https://github.com/gcanti/pantarei/blob/master/tcomb/3.2.2%2B.js) to the `[libs]` section of your `.flowconfig`.
 
 ## Runtime type introspection
 
@@ -154,6 +156,8 @@ type Person = { name: string };
 const ReifiedPerson = (({}: any): $Reify<Person>)
 console.log(ReifiedPerson.meta) // => { kind: 'interface', props: ... }
 ```
+
+In order to enable this feature add the [`tcomb` definition file](https://github.com/gcanti/pantarei/blob/master/tcomb/3.2.2%2B.js) to the `[libs]` section of your `.flowconfig`.
 
 ## Validating (at runtime) the IO boundary using typecasts
 
@@ -268,6 +272,9 @@ Additional babel configuration:
   ]
 }
 ```
+
+In order to enable this feature add the [`tcomb-react` definition file](https://github.com/gcanti/pantarei/blob/master/tcomb-react/0.9.1%2B.js) to the `[libs]` section of your `.flowconfig`.
+Also you may want to set `esproposal.decorators=ignore` in the `[options]` section of your `.flowconfig`.
 
 ### Without decorators
 

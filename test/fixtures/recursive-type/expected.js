@@ -37,7 +37,7 @@ Path4.define(_t.interface({
 
 const Path5 = _t.declare("Path5");
 
-Path5.define(_t.interface.extend([A, {
+Path5.define(_extend([A, {
   node: Node,
   parentPath: _t.maybe(Path5)
 }]))
@@ -45,7 +45,7 @@ Path5.define(_t.interface.extend([A, {
 // recursive
 
 export const Path6 = _t.declare("Path6");
-Path6.define(_t.interface.extend([A, {
+Path6.define(_extend([A, {
   node: Node,
   parentPath: _t.maybe(Path6)
 }]))

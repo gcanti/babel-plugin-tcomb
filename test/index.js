@@ -171,7 +171,7 @@ describe('emit asserts for: ', () => {
     if ((caseName in skipTests)) {
       return
     }
-    if (!(caseName in { 'import-type': 1 })) {
+    if (!(caseName in { 'interface': 1 })) {
       // return
     }
     it(`should ${caseName.split('-').join(' ')}`, () => {

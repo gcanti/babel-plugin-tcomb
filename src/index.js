@@ -36,21 +36,38 @@ export default function ({ types: t, template }) {
 
   let tcombId = null
   let assertId = null
+  let extendId = null
   let hasTypes = false
   let hasAsserts = false
+  let hasExtend = false
 
   const assertHelper = expression(`
-    function assert(x, type, name) {
-      if (tcomb.isType(type) && type.meta.kind !== 'struct') {
-        type(x, [name + ': ' + tcomb.getTypeName(type)]);
+    function assertId(x, type, name) {
+      if (tcombId.isType(type) && type.meta.kind !== 'struct') {
+        type(x, [name + ': ' + tcombId.getTypeName(type)]);
       } else if (!(x instanceof type)) {
-        tcomb.fail('Invalid value ' + tcomb.stringify(x) + ' supplied to ' + name + ' (expected a ' + tcomb.getTypeName(type) + ')');
+        tcombId.fail('Invalid value ' + tcombId.stringify(x) + ' supplied to ' + name + ' (expected a ' + tcombId.getTypeName(type) + ')');
       }
       return x;
     }
   `)
 
-  const genericsHelper = expression('typeof type !== "undefined" ? type : tcomb.Any')
+  const genericsHelper = expression('typeof type !== "undefined" ? type : tcombId.Any')
+
+  const extendHelper = expression(`
+    function extendId(types, name) {
+      const isAny = (type) => {
+        if (type === tcombId.Any) {
+          return true;
+        }
+        if (tcombId.isType(type) && type.meta.kind === 'maybe') {
+          return isAny(type.meta.type)
+        }
+        return false;
+      }
+      return tcombId.interface.extend(types.filter(type => !isAny(type)), name)
+    }
+  `)
 
   //
   // combinators
@@ -363,7 +380,7 @@ export default function ({ types: t, template }) {
     }
     name = name || t.stringLiteral(getArgumentName(id))
     if (type.type === 'Identifier') {
-      type = genericsHelper({ tcomb: tcombId, type })
+      type = genericsHelper({ tcombId, type })
     }
     return t.expressionStatement(t.callExpression(
       assertId,
@@ -521,6 +538,7 @@ export default function ({ types: t, template }) {
     }
     else {
       // handle extends
+      hasExtend = true
       let props = getObjectExpression(node.body.properties)
       const mixins = node.extends.filter(m => m.id.name !== MAGIC_REFINEMENT_NAME)
       const refinements = node.extends.filter(m => m.id.name === MAGIC_REFINEMENT_NAME)
@@ -539,7 +557,7 @@ export default function ({ types: t, template }) {
             t.memberExpression(node.id, t.identifier('define')),
             [
               t.callExpression(
-                t.memberExpression(t.memberExpression(tcombId, t.identifier(INTERFACE_COMBINATOR_NAME)), t.identifier('extend')),
+                extendId,
                 [
                   t.arrayExpression(mixins.map(inter => inter.id).concat(props))
                 ]
@@ -553,7 +571,7 @@ export default function ({ types: t, template }) {
         t.variableDeclarator(
           node.id,
           t.callExpression(
-            t.memberExpression(t.memberExpression(tcombId, t.identifier(INTERFACE_COMBINATOR_NAME)), t.identifier('extend')),
+            extendId,
             [
               t.arrayExpression(mixins.map(inter => inter.id).concat(props)),
               typeName
@@ -608,8 +626,10 @@ export default function ({ types: t, template }) {
         enter(path) {
           hasAsserts = false
           hasTypes = false
+          hasExtend = false
           tcombId = path.scope.generateUidIdentifier('t')
           assertId = path.scope.generateUidIdentifier('assert')
+          extendId = path.scope.generateUidIdentifier('extend')
           path.traverse({
 
           })
@@ -617,8 +637,10 @@ export default function ({ types: t, template }) {
 
         exit(path, state) {
           const isAssertHelperRequired = hasAsserts && !state.opts[SKIP_ASSERTS_OPTION] && !state.opts[SKIP_HELPERS_OPTION]
+          const isExtendHelperRequired = hasExtend && !state.opts[SKIP_HELPERS_OPTION]
+          const isTcombImportRequired = hasTypes || isAssertHelperRequired || isExtendHelperRequired
 
-          if (hasTypes || isAssertHelperRequired) {
+          if (isTcombImportRequired) {
             path.node.body.unshift(
               t.importDeclaration([t.importDefaultSpecifier(tcombId)], t.stringLiteral('tcomb'))
             )
@@ -626,8 +648,14 @@ export default function ({ types: t, template }) {
 
           if (isAssertHelperRequired) {
             path.node.body.push(assertHelper({
-              assert: assertId,
-              tcomb: tcombId
+              assertId,
+              tcombId
+            }))
+          }
+          if (isExtendHelperRequired) {
+            path.node.body.push(extendHelper({
+              extendId,
+              tcombId
             }))
           }
         }

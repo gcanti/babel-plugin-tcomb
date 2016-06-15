@@ -41,7 +41,6 @@ export default function ({ types: t, template }) {
 
   const assertHelper = expression(`
     function assert(x, type, name) {
-      type = type || tcomb.Any;
       if (tcomb.isType(type) && type.meta.kind !== 'struct') {
         type(x, [name + ': ' + tcomb.getTypeName(type)]);
       } else if (!(x instanceof type)) {
@@ -611,6 +610,9 @@ export default function ({ types: t, template }) {
           hasTypes = false
           tcombId = path.scope.generateUidIdentifier('t')
           assertId = path.scope.generateUidIdentifier('assert')
+          path.traverse({
+
+          })
         },
 
         exit(path, state) {
@@ -634,9 +636,29 @@ export default function ({ types: t, template }) {
 
       ImportDeclaration(path) {
         const node = path.node
-        // prevent transform-flow-strip-types
         if (node.importKind === 'type') {
-          node.importKind = 'value'
+          hasTypes = true
+          const source = node.source.value
+          const typesId = path.scope.generateUidIdentifier(source)
+          const importNode = t.variableDeclaration('const', [
+            t.variableDeclarator(
+              typesId,
+              t.callExpression(t.identifier('require'), [t.stringLiteral(source)])
+            )
+          ])
+          const nodes = [importNode].concat(node.specifiers.map(specifier => {
+            return t.variableDeclaration('const', [
+              t.variableDeclarator(
+                specifier.imported,
+                t.logicalExpression(
+                  '||',
+                  t.memberExpression(typesId, specifier.imported),
+                  getAnyType()
+                )
+              )
+            ])
+          }))
+          path.replaceWithMultiple(nodes)
         }
       },
 

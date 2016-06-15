@@ -29,8 +29,6 @@ function foo(x: string) {
 }
 
 function _assert2(x, type, name) {
-  type = type || _t.Any;
-
   if (_t.isType(type) && type.meta.kind !== 'struct') {
     type(x, [name + ': ' + _t.getTypeName(type)]);
   } else if (!(x instanceof type)) {
@@ -173,7 +171,7 @@ describe('emit asserts for: ', () => {
     if ((caseName in skipTests)) {
       return
     }
-    if (!(caseName in { 'recursive-type': 1 })) {
+    if (!(caseName in { 'import-type': 1 })) {
       // return
     }
     it(`should ${caseName.split('-').join(' ')}`, () => {

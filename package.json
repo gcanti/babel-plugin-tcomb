@@ -9,7 +9,6 @@
   "scripts": {
     "lint": "eslint src",
     "build": "babel -d ./lib ./src",
-    "inception": "babel-node inception/index.js",
     "test": "mocha --compilers js:babel-core/register"
   },
   "repository": {

@@ -8,6 +8,8 @@
  *
  */
 
+import path from 'path'
+
 const PLUGIN_NAME = 'babel-plugin-tcomb'
 const INTERFACE_COMBINATOR_NAME = 'interface'
 
@@ -41,7 +43,7 @@ export default function ({ types: t, template }) {
   let hasAsserts = false
   let hasExtend = false
 
-  const assertHelper = expression(`
+  const assertTemplate = expression(`
     function assertId(x, type, name) {
       if (tcombId.isType(type) && type.meta.kind !== 'struct') {
         type(x, [name + ': ' + tcombId.getTypeName(type)]);
@@ -52,9 +54,9 @@ export default function ({ types: t, template }) {
     }
   `)
 
-  const genericsHelper = expression('typeof type !== "undefined" ? type : tcombId.Any')
+  const ensureTypeTemplate = expression('typeof type !== "undefined" ? type : tcombId.Any')
 
-  const extendHelper = expression(`
+  const extendTemplate = expression(`
     function extendId(types, name) {
       const isAny = (type) => {
         if (type === tcombId.Any) {
@@ -213,11 +215,11 @@ export default function ({ types: t, template }) {
   // helpers
   //
 
-  function getExpression (node) {
+  function getExpression(node) {
     return t.isExpressionStatement(node) ? node.expression : node
   }
 
-  function expression (input) {
+  function expression(input) {
     const fn = template(input)
     return function (args) {
       const node = fn(args)
@@ -365,26 +367,25 @@ export default function ({ types: t, template }) {
     }
   }
 
-  function getArgumentName(id) {
+  function getAssertArgumentName(id) {
     if (id.type === 'MemberExpression') {
-      return `${getArgumentName(id.object)}.${id.property.name}`
+      return `${getAssertArgumentName(id.object)}.${id.property.name}`
     }
     return id.name
   }
 
   function getAssert({ id, optional, annotation, name }, typeParameters) {
-    hasAsserts = true
-    let type = getType({ annotation, typeParameters })
+    let typeAST = getType({ annotation, typeParameters })
     if (optional) {
-      type = getMaybeCombinator(type)
+      typeAST = getMaybeCombinator(typeAST)
     }
-    name = name || t.stringLiteral(getArgumentName(id))
-    if (type.type === 'Identifier') {
-      type = genericsHelper({ tcombId, type })
+    name = name || t.stringLiteral(getAssertArgumentName(id))
+    if (typeAST.type === 'Identifier') {
+      typeAST = ensureTypeTemplate({ tcombId, type: typeAST })
     }
     return t.expressionStatement(t.callExpression(
       assertId,
-      [id, type, name]
+      [id, typeAST, name]
     ))
   }
 
@@ -412,14 +413,14 @@ export default function ({ types: t, template }) {
     }
   }
 
-  function getFunctionArgumentCheckExpressions(node, typeParameters) {
+  function getFunctionArgumentCheckExpressionsAST(node, typeParameters) {
     const params = node.params.map(getParam).filter(x => x)
     return params.map(param => getAssert(param, typeParameters))
   }
 
-  function getParamName(param) {
+  function getParamNameAST(param) {
     if (param.type === 'AssignmentPattern') {
-      return getParamName(param.left)
+      return getParamNameAST(param.left)
     }
     else if (param.type === 'RestElement') {
       return t.restElement(param.argument)
@@ -430,8 +431,8 @@ export default function ({ types: t, template }) {
     return t.identifier(param.name)
   }
 
-  function getWrappedFunctionReturnWithTypeCheck(node, typeParameters) {
-    const params = node.params.map(getParamName)
+  function getWrappedFunctionReturnWithTypeCheckAST(node, typeParameters) {
+    const params = node.params.map(getParamNameAST)
     const callParams = params.map(param => {
       if (isObjectPattern(param)) {
         return t.objectExpression(param.properties)
@@ -443,8 +444,7 @@ export default function ({ types: t, template }) {
     })
 
     const id = t.identifier('ret')
-
-    const assert = getAssert({
+    const assertAST = getAssert({
       id,
       annotation: node.returnType.typeAnnotation,
       name: t.stringLiteral('return value')
@@ -460,7 +460,7 @@ export default function ({ types: t, template }) {
           )
         )
       ]),
-      assert,
+      assertAST,
       t.returnStatement(id)
     ]
   }
@@ -508,93 +508,91 @@ export default function ({ types: t, template }) {
     ])
   }
 
-  function getInterfaceDefinition(path) {
-    const node = path.node
-    const typeName = t.stringLiteral(node.id.name)
-    const typeParameters = getTypeParameters(path)
+  function getInterfaceDefinitionAST(node, typeParameters) {
     const isRecursive = isRecursiveType(node)
-
-    if (node.extends.length === 0) {
-
-      const args = {
-        annotation: node.body,
-        typeParameters
-      }
-
-      if (isRecursive) {
-        return [
-          defineDeclareCombinator(node),
-          t.callExpression(
-            t.memberExpression(node.id, t.identifier('define')),
-            [getType(args)]
-          )
-        ]
-      }
-
-      args.typeName = typeName
-      return t.variableDeclaration('const', [
-        t.variableDeclarator(node.id, getType(args))
-      ])
+    const args = {
+      annotation: node.body,
+      typeParameters
     }
-    else {
-      // handle extends
-      hasExtend = true
-      let props = getObjectExpression(node.body.properties)
-      const mixins = node.extends.filter(m => m.id.name !== MAGIC_REFINEMENT_NAME)
-      const refinements = node.extends.filter(m => m.id.name === MAGIC_REFINEMENT_NAME)
-      const len = refinements.length
-      if (len > 0) {
-        props = getInterfaceCombinator(props)
-        for (let i = 0; i < len; i++) {
-          props = getRefinementCombinator(props, getRefinementPredicateId(refinements[i]))
-        }
-      }
 
-      if (isRecursive) {
-        return [
-          defineDeclareCombinator(node),
-          t.callExpression(
-            t.memberExpression(node.id, t.identifier('define')),
-            [
-              t.callExpression(
-                extendId,
-                [
-                  t.arrayExpression(mixins.map(inter => inter.id).concat(props))
-                ]
-              )
-            ]
-          )
-        ]
-      }
-
-      return t.variableDeclaration('const', [
-        t.variableDeclarator(
-          node.id,
-          t.callExpression(
-            extendId,
-            [
-              t.arrayExpression(mixins.map(inter => inter.id).concat(props)),
-              typeName
-            ]
-          )
+    if (isRecursive) {
+      return [
+        defineDeclareCombinator(node),
+        t.callExpression(
+          t.memberExpression(node.id, t.identifier('define')),
+          [getType(args)]
         )
-      ])
+      ]
     }
+
+    args.typeName = t.stringLiteral(node.id.name)
+    return t.variableDeclaration('const', [
+      t.variableDeclarator(node.id, getType(args))
+    ])
+  }
+
+  function getExtendedInterfaceDefinitionAST(node) {
+    const isRecursive = isRecursiveType(node)
+    let props = getObjectExpression(node.body.properties)
+    const mixins = node.extends.filter(m => m.id.name !== MAGIC_REFINEMENT_NAME)
+    const refinements = node.extends.filter(m => m.id.name === MAGIC_REFINEMENT_NAME)
+    const len = refinements.length
+    if (len > 0) {
+      props = getInterfaceCombinator(props)
+      for (let i = 0; i < len; i++) {
+        props = getRefinementCombinator(props, getRefinementPredicateId(refinements[i]))
+      }
+    }
+
+    if (isRecursive) {
+      return [
+        defineDeclareCombinator(node),
+        t.callExpression(
+          t.memberExpression(node.id, t.identifier('define')),
+          [
+            t.callExpression(
+              extendId,
+              [
+                t.arrayExpression(mixins.map(inter => inter.id).concat(props))
+              ]
+            )
+          ]
+        )
+      ]
+    }
+
+    const typeName = t.stringLiteral(node.id.name)
+    return t.variableDeclaration('const', [
+      t.variableDeclarator(
+        node.id,
+        t.callExpression(
+          extendId,
+          [
+            t.arrayExpression(mixins.map(inter => inter.id).concat(props)),
+            typeName
+          ]
+        )
+      )
+    ])
   }
 
   function buildCodeFrameError(path, error) {
     throw path.buildCodeFrameError(`[${PLUGIN_NAME}] ${error.message}`)
   }
 
-  function preventReservedNameUsage(path) {
+  function preventReservedNamesUsage(path) {
     const name = path.node.id.name
     if (name in RESERVED_NAMES) {
       buildCodeFrameError(path, new Error(`${name} is a reserved interface name for ${PLUGIN_NAME}`))
     }
   }
 
+  function hasRecursiveComment(node) {
+    return Array.isArray(node.leadingComments) && node.leadingComments.some(comment => /recursive/.test(comment.value))
+  }
+
   function isRecursiveType(node) {
-    return node.isRecursive || ( Array.isArray(node.leadingComments) && node.leadingComments.some(comment => /recursive/.test(comment.value)) )
+    return node.isRecursive || hasRecursiveComment(node)
   }
 
   function replaceTypeDefintion(path, definition) {
@@ -614,6 +612,49 @@ export default function ({ types: t, template }) {
     }
   }
 
+  function isExternalImportDeclaration(source) {
+    return path.normalize(source) === source
+  }
+
+  function getExternalImportDeclarationAST(path) {
+    const node = path.node
+    const source = node.source.value
+    const typesId = path.scope.generateUidIdentifier(source)
+    const importNode = t.variableDeclaration('const', [
+      t.variableDeclarator(
+        typesId,
+        t.callExpression(t.identifier('require'), [t.stringLiteral(source)])
+      )
+    ])
+    return [importNode].concat(node.specifiers.map(specifier => {
+      return t.variableDeclaration('const', [
+        t.variableDeclarator(
+          specifier.imported,
+          t.logicalExpression(
+            '||',
+            t.memberExpression(typesId, specifier.imported),
+            getAnyType()
+          )
+        )
+      ])
+    }))
+  }
+
+  function isRuntimeTypeIntrospection(node) {
+    return node.typeAnnotation &&
+           node.typeAnnotation.typeAnnotation &&
+           node.typeAnnotation.typeAnnotation.id &&
+           node.typeAnnotation.typeAnnotation.id.name === MAGIC_REIFY_NAME
+  }
+
+  function getRuntimeTypeIntrospectionAST(node) {
+    return node.typeAnnotation.typeAnnotation.typeParameters.params[0].id
+  }
+
+  function isTypeExportNamedDeclaration(node) {
+    return node.declaration && ( node.declaration.type === 'TypeAlias' || node.declaration.type === 'InterfaceDeclaration' )
+  }
+
   //
   // visitors
   //
@@ -630,30 +671,28 @@ export default function ({ types: t, template }) {
           tcombId = path.scope.generateUidIdentifier('t')
           assertId = path.scope.generateUidIdentifier('assert')
           extendId = path.scope.generateUidIdentifier('extend')
-          path.traverse({
-
-          })
         },
 
         exit(path, state) {
-          const isAssertHelperRequired = hasAsserts && !state.opts[SKIP_ASSERTS_OPTION] && !state.opts[SKIP_HELPERS_OPTION]
-          const isExtendHelperRequired = hasExtend && !state.opts[SKIP_HELPERS_OPTION]
-          const isTcombImportRequired = hasTypes || isAssertHelperRequired || isExtendHelperRequired
+          const isassertTemplateRequired = hasAsserts && !state.opts[SKIP_ASSERTS_OPTION] && !state.opts[SKIP_HELPERS_OPTION]
+          const isextendTemplateRequired = hasExtend && !state.opts[SKIP_HELPERS_OPTION]
+          const isImportTcombRequired = hasTypes || isassertTemplateRequired || isextendTemplateRequired
 
-          if (isTcombImportRequired) {
+          if (isImportTcombRequired) {
             path.node.body.unshift(
               t.importDeclaration([t.importDefaultSpecifier(tcombId)], t.stringLiteral('tcomb'))
             )
           }
 
-          if (isAssertHelperRequired) {
-            path.node.body.push(assertHelper({
+          if (isassertTemplateRequired) {
+            path.node.body.push(assertTemplate({
               assertId,
               tcombId
             }))
           }
-          if (isExtendHelperRequired) {
-            path.node.body.push(extendHelper({
+
+          if (isextendTemplateRequired) {
+            path.node.body.push(extendTemplate({
               extendId,
               tcombId
             }))
@@ -665,67 +704,59 @@ export default function ({ types: t, template }) {
       ImportDeclaration(path) {
         const node = path.node
         if (node.importKind === 'type') {
-          hasTypes = true
           const source = node.source.value
-          const typesId = path.scope.generateUidIdentifier(source)
-          const importNode = t.variableDeclaration('const', [
-            t.variableDeclarator(
-              typesId,
-              t.callExpression(t.identifier('require'), [t.stringLiteral(source)])
-            )
-          ])
-          const nodes = [importNode].concat(node.specifiers.map(specifier => {
-            return t.variableDeclaration('const', [
-              t.variableDeclarator(
-                specifier.imported,
-                t.logicalExpression(
-                  '||',
-                  t.memberExpression(typesId, specifier.imported),
-                  getAnyType()
-                )
-              )
-            ])
-          }))
-          path.replaceWithMultiple(nodes)
+          if (isExternalImportDeclaration(source)) {
+            hasTypes = true
+            path.replaceWithMultiple(getExternalImportDeclarationAST(path))
+          }
+          else {
+            // prevent transform-flow-strip-types
+            node.importKind = 'value'
+          }
         }
       },
 
       ExportNamedDeclaration(path) {
         const node = path.node
         // prevent transform-flow-strip-types
-        if (node.declaration && ( node.declaration.type === 'TypeAlias' || node.declaration.type === 'InterfaceDeclaration' ) ) {
+        if (isTypeExportNamedDeclaration(node)) {
           node.exportKind = 'value'
           node.declaration.isRecursive = isRecursiveType(node)
         }
       },
 
       TypeAlias(path) {
-        preventReservedNameUsage(path)
+        preventReservedNamesUsage(path)
         hasTypes = true
         replaceTypeDefintion(path, getTypeAliasDefinition(path))
       },
 
       InterfaceDeclaration(path) {
-        preventReservedNameUsage(path)
+        preventReservedNamesUsage(path)
         hasTypes = true
-        replaceTypeDefintion(path, getInterfaceDefinition(path))
+        const node = path.node
+        if (path.node.extends.length > 0) {
+          hasExtend = true
+          replaceTypeDefintion(path, getExtendedInterfaceDefinitionAST(node))
+        }
+        else {
+          const typeParameters = getTypeParameters(path)
+          replaceTypeDefintion(path, getInterfaceDefinitionAST(node, typeParameters))
+        }
       },
 
       TypeCastExpression(path) {
         const node = path.node
-        // handle runtime type introspection
-        if (node.typeAnnotation &&
-            node.typeAnnotation.typeAnnotation &&
-            node.typeAnnotation.typeAnnotation.id &&
-            node.typeAnnotation.typeAnnotation.id.name === MAGIC_REIFY_NAME) {
+        if (isRuntimeTypeIntrospection(node)) {
           try {
-            path.replaceWith(node.typeAnnotation.typeAnnotation.typeParameters.params[0].id)
+            path.replaceWith(getRuntimeTypeIntrospectionAST(node))
           }
           catch (error) {
             buildCodeFrameError(path, new Error(`Invalid use of ${MAGIC_REIFY_NAME}`))
           }
         }
         else {
+          hasAsserts = true
           path.replaceWith(getAssert({
             id: node.expression,
             annotation: node.typeAnnotation.typeAnnotation
@@ -751,14 +782,14 @@ export default function ({ types: t, template }) {
           // If we have a return type then we will wrap our entire function
           // body and insert a type check on the returned value.
           if (node.returnType) {
-            path.get('body').replaceWithMultiple(
-              getWrappedFunctionReturnWithTypeCheck(node)
-            )
+            hasAsserts = true
+            path.get('body').replaceWithMultiple(getWrappedFunctionReturnWithTypeCheckAST(node))
           }
 
           // Prepend any argument checks to the top of our function body.
-          const argumentChecks = getFunctionArgumentCheckExpressions(node)
+          const argumentChecks = getFunctionArgumentCheckExpressionsAST(node)
           if (argumentChecks.length > 0) {
+            hasAsserts = true
             node.body.body.unshift(...argumentChecks)
           }
         }

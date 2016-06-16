@@ -28,6 +28,12 @@ You can add type safety to your untyped codebase gradually:
 - then, when you feel comfortable, turn on `Flow` and unleash the power of static type checking
 - third, for even more type safety, define your refinement types and validate the IO boundary
 
+# Boilerplate
+
+Boilerplate showing what you can get in terms of type safety with babel-plugin-tcomb:
+
+[babel-plugin-tcomb-boilerplate](https://github.com/gcanti/babel-plugin-tcomb-boilerplate)
+
 # Setup
 
 First, install via npm.
@@ -128,7 +134,7 @@ In order to define [refinement types](https://github.com/gcanti/tcomb/blob/maste
 import type { $Refinement } from 'tcomb'
 
 // define your predicate...
-const isInteger = n => n % 2 === 0
+const isInteger = n => n % 1 === 0
 
 // ...and pass it to the suitable intersection type
 type Integer = number & $Refinement<typeof isInteger>;

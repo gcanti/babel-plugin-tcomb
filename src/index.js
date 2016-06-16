@@ -629,10 +629,10 @@ export default function ({ types: t, template }) {
     return [importNode].concat(node.specifiers.map(specifier => {
       return t.variableDeclaration('const', [
         t.variableDeclarator(
-          specifier.imported,
+          specifier.local,
           t.logicalExpression(
             '||',
-            t.memberExpression(typesId, specifier.imported),
+            t.memberExpression(typesId, specifier.local),
             getAnyType()
           )
         )

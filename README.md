@@ -40,7 +40,7 @@ First, install via npm.
 
 ```sh
 npm install --save tcomb
-npm install --save-dev gcanti/babel-plugin-tcomb#master # until v0.3 will be released
+npm install --save-dev babel-plugin-tcomb
 ```
 
 Then, in your babel configuration (usually in your `.babelrc` file), add (at least) the following plugins:

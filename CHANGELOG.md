@@ -12,6 +12,12 @@
 **Note**: Gaps between patch versions are faulty/broken releases.
 **Note**: A feature tagged as Experimental is in a high state of flux, you're at risk of it changing without notice.
 
+## v0.3
+
+- **Breaking Change**
+  - complete refactoring, `tcomb ^3.2.2` is now required
+  - add support for Flow syntax
+
 ## v0.2.3
 
 - **Bug Fix**

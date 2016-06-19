@@ -11,3 +11,7 @@ const B = _extend([A, {
 const C = _extend([A, {}], "C");
 
 const D = _extend([A, _t.refinement(_t.interface({}), p)], "D");
+
+const E = _extend([A, {
+  e: _t.Any
+}], "E");

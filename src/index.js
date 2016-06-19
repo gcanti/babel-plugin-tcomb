@@ -34,6 +34,15 @@ const SKIP_HELPERS_OPTION = 'skipHelpers'
 // useful for keeping the models
 const SKIP_ASSERTS_OPTION = 'skipAsserts'
 
+function assign(x, y) {
+  if (y) {
+    for (let k in y) {
+      x[k] = y[k]
+    }
+  }
+  return x
+}
+
 export default function ({ types: t, template }) {
 
   let tcombId = null
@@ -460,21 +469,27 @@ export default function ({ types: t, template }) {
     ]
   }
 
-  function getTypeParameters(path) {
-    if (path) {
-      const node = path.node
-      let typeParameters = getTypeParameters(path.parentPath)
-      if (node.typeParameters) {
-        typeParameters = typeParameters || {}
-        node.typeParameters.params.forEach(param => typeParameters[param.name] = true)
-      }
-      return typeParameters
+  function getTypeParameterName(param) {
+    if (param.type === 'GenericTypeAnnotation') {
+      return param.id.name
     }
+    return param.name
+  }
+
+  function getTypeParameters(node) {
+    const typeParameters = {}
+    if (node.typeParameters) {
+      node.typeParameters.params.forEach(param => typeParameters[getTypeParameterName(param)] = true)
+    }
+    if (node.superTypeParameters) {
+      node.superTypeParameters.params.forEach(param => typeParameters[getTypeParameterName(param)] = true)
+    }
+    return typeParameters
   }
 
   function getTypeAliasDefinition(path) {
     const node = path.node
-    const typeParameters = getTypeParameters(path)
+    const typeParameters = getTypeParameters(node)
     const isRecursive = isRecursiveType(node)
     const args = {
       annotation: node.right,
@@ -528,9 +543,10 @@ export default function ({ types: t, template }) {
 
   function getExtendedInterfaceDefinitionAST(node, typeParameters) {
     const isRecursive = isRecursiveType(node)
-    let props = getObjectExpression(node.body.properties, typeParameters)
     const mixins = node.extends.filter(m => m.id.name !== MAGIC_REFINEMENT_NAME)
+    typeParameters = mixins.reduce((acc, node) => assign(acc, getTypeParameters(node)), typeParameters)
     const refinements = node.extends.filter(m => m.id.name === MAGIC_REFINEMENT_NAME)
+    let props = getObjectExpression(node.body.properties, typeParameters)
     const len = refinements.length
     if (len > 0) {
       props = getInterfaceCombinator(props)
@@ -669,9 +685,9 @@ export default function ({ types: t, template }) {
         },
 
         exit(path, state) {
-          const isassertTemplateRequired = hasAsserts && !state.opts[SKIP_ASSERTS_OPTION] && !state.opts[SKIP_HELPERS_OPTION]
-          const isextendTemplateRequired = hasExtend && !state.opts[SKIP_HELPERS_OPTION]
-          const isImportTcombRequired = hasTypes || isassertTemplateRequired || isextendTemplateRequired
+          const isAssertTemplateRequired = hasAsserts && !state.opts[SKIP_ASSERTS_OPTION] && !state.opts[SKIP_HELPERS_OPTION]
+          const isExtendTemplateRequired = hasExtend && !state.opts[SKIP_HELPERS_OPTION]
+          const isImportTcombRequired = hasTypes || isAssertTemplateRequired || isExtendTemplateRequired
 
           if (isImportTcombRequired) {
             path.node.body.unshift(
@@ -679,14 +695,14 @@ export default function ({ types: t, template }) {
             )
           }
 
-          if (isassertTemplateRequired) {
+          if (isAssertTemplateRequired) {
             path.node.body.push(assertTemplate({
               assertId,
               tcombId
             }))
           }
 
-          if (isextendTemplateRequired) {
+          if (isExtendTemplateRequired) {
             path.node.body.push(extendTemplate({
               extendId,
               tcombId
@@ -730,7 +746,7 @@ export default function ({ types: t, template }) {
         preventReservedNamesUsage(path)
         hasTypes = true
         const node = path.node
-        const typeParameters = getTypeParameters(path)
+        const typeParameters = getTypeParameters(node)
         if (path.node.extends.length > 0) {
           hasExtend = true
           replaceTypeDefintion(path, getExtendedInterfaceDefinitionAST(node, typeParameters))
@@ -740,7 +756,7 @@ export default function ({ types: t, template }) {
         }
       },
 
-      TypeCastExpression(path) {
+      TypeCastExpression(path, state) {
         const node = path.node
         if (isRuntimeTypeIntrospection(node)) {
           try {
@@ -751,12 +767,26 @@ export default function ({ types: t, template }) {
           }
         }
         else {
+          if (state.opts[SKIP_ASSERTS_OPTION]) {
+            return
+          }
           hasAsserts = true
           path.replaceWith(getAssert({
             id: node.expression,
             annotation: node.typeAnnotation.typeAnnotation
-          }), getTypeParameters(path))
+          }), getTypeParameters(node))
         }
+      },
+
+      Class(path) {
+        const node = path.node
+        const typeParameters = getTypeParameters(node)
+        path.traverse({
+          Function(path) {
+            const node = path.node
+            node._typeParameters = assign(typeParameters, node._typeParameters)
+          }
+        })
       },
 
       Function(path, state) {
@@ -765,7 +795,7 @@ export default function ({ types: t, template }) {
         }
 
         const node = path.node
-        const typeParameters = getTypeParameters(path)
+        const typeParameters = assign(getTypeParameters(node), node._typeParameters)
 
         try {
           // Firstly let's replace arrow function expressions into

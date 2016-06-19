@@ -16,6 +16,7 @@
 
 - **Bug Fix**
   - retrieve type parameters from path recursively, fix #46 (@gcanti)
+  - add support for super type parameters (@gcanti)
 
 ## v0.3.0
 

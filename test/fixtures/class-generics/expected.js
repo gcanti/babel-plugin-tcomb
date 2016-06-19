@@ -1,7 +1,18 @@
 class A {
-  constructor(x) {
+  foo(x) {
     _assert(x, _t.Any, "x");
-
-    this.x = x;
   }
 }
+
+class B extends C {
+  foo(x) {
+    _assert(x, _t.Any, "x");
+  }
+}
+
+class D extends E {
+  foo(x) {
+    _assert(x, _t.Any, "x");
+  }
+}
+

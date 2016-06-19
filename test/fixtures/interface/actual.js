@@ -13,3 +13,8 @@ interface D extends A, $Refinement<typeof p> {}
 interface E<T> extends A {
   e: T
 }
+
+interface F<T> extends E<B> {
+  e: T,
+  f: B
+}

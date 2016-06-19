@@ -47,6 +47,8 @@ Then, in your babel configuration (usually in your `.babelrc` file), add (at lea
 
 ```js
 {
+  "presets": ["es2015"],
+  "passPerPreset": true,
   "plugins" : [
     "syntax-flow",
     "tcomb",
@@ -272,6 +274,7 @@ Additional babel configuration:
 ```js
 {
   "presets": ["es2015", "react"],
+  "passPerPreset": true,
   "plugins" : [
     "tcomb",
     "transform-decorators-legacy"

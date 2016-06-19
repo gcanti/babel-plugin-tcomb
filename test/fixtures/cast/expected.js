@@ -9,11 +9,11 @@ export function getUser(userId) {
 
   const ret = function (userId) {
     return axios.get('').then(p => {
-      return _assert(p.data, typeof User !== "undefined" ? User : _t.Any, 'p.data');
+      return _assert(p.data, User, 'p.data');
     });
   }.call(this, userId);
 
-  _assert(ret, typeof Promise !== "undefined" ? Promise : _t.Any, 'return value');
+  _assert(ret, Promise, 'return value');
 
   return ret;
 }

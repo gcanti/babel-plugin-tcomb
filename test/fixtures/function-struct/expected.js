@@ -5,7 +5,7 @@ const Person = t.struct({
 });
 
 function foo(person) {
-  _assert(person, typeof Person !== "undefined" ? Person : _t.Any, 'person');
+  _assert(person, Person, 'person');
 
   return person.name;
 }

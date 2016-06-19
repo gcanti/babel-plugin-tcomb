@@ -54,8 +54,6 @@ export default function ({ types: t, template }) {
     }
   `)
 
-  const ensureTypeTemplate = expression('typeof type !== "undefined" ? type : tcombId.Any')
-
   const extendTemplate = expression(`
     function extendId(types, name) {
       const isAny = (type) => {
@@ -380,9 +378,6 @@ export default function ({ types: t, template }) {
       typeAST = getMaybeCombinator(typeAST)
     }
     name = name || t.stringLiteral(getAssertArgumentName(id))
-    if (typeAST.type === 'Identifier') {
-      typeAST = ensureTypeTemplate({ tcombId, type: typeAST })
-    }
     return t.expressionStatement(t.callExpression(
       assertId,
       [id, typeAST, name]
@@ -531,9 +526,9 @@ export default function ({ types: t, template }) {
     ])
   }
 
-  function getExtendedInterfaceDefinitionAST(node) {
+  function getExtendedInterfaceDefinitionAST(node, typeParameters) {
     const isRecursive = isRecursiveType(node)
-    let props = getObjectExpression(node.body.properties)
+    let props = getObjectExpression(node.body.properties, typeParameters)
     const mixins = node.extends.filter(m => m.id.name !== MAGIC_REFINEMENT_NAME)
     const refinements = node.extends.filter(m => m.id.name === MAGIC_REFINEMENT_NAME)
     const len = refinements.length
@@ -735,12 +730,12 @@ export default function ({ types: t, template }) {
         preventReservedNamesUsage(path)
         hasTypes = true
         const node = path.node
+        const typeParameters = getTypeParameters(path)
         if (path.node.extends.length > 0) {
           hasExtend = true
-          replaceTypeDefintion(path, getExtendedInterfaceDefinitionAST(node))
+          replaceTypeDefintion(path, getExtendedInterfaceDefinitionAST(node, typeParameters))
         }
         else {
-          const typeParameters = getTypeParameters(path)
           replaceTypeDefintion(path, getInterfaceDefinitionAST(node, typeParameters))
         }
       },
@@ -760,7 +755,7 @@ export default function ({ types: t, template }) {
           path.replaceWith(getAssert({
             id: node.expression,
             annotation: node.typeAnnotation.typeAnnotation
-          }))
+          }), getTypeParameters(path))
         }
       },
 
@@ -770,6 +765,7 @@ export default function ({ types: t, template }) {
         }
 
         const node = path.node
+        const typeParameters = getTypeParameters(path)
 
         try {
           // Firstly let's replace arrow function expressions into
@@ -783,11 +779,11 @@ export default function ({ types: t, template }) {
           // body and insert a type check on the returned value.
           if (node.returnType) {
             hasAsserts = true
-            path.get('body').replaceWithMultiple(getWrappedFunctionReturnWithTypeCheckAST(node))
+            path.get('body').replaceWithMultiple(getWrappedFunctionReturnWithTypeCheckAST(node, typeParameters))
           }
 
           // Prepend any argument checks to the top of our function body.
-          const argumentChecks = getFunctionArgumentCheckExpressionsAST(node)
+          const argumentChecks = getFunctionArgumentCheckExpressionsAST(node, typeParameters)
           if (argumentChecks.length > 0) {
             hasAsserts = true
             node.body.body.unshift(...argumentChecks)

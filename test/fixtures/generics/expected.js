@@ -1,5 +1,5 @@
 function foo(p) {
-  _assert(p, typeof Promise !== "undefined" ? Promise : _t.Any, "p");
+  _assert(p, Promise, "p");
 
   const ret = function (p) {}.call(this, p);
 

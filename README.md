@@ -273,7 +273,7 @@ Additional babel configuration:
 
 ```js
 {
-  "presets": ["es2015", "react"],
+  "presets": ["react", "es2015"],
   "passPerPreset": true,
   "plugins" : [
     "tcomb",

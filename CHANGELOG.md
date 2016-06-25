@@ -12,6 +12,13 @@
 **Note**: Gaps between patch versions are faulty/broken releases.
 **Note**: A feature tagged as Experimental is in a high state of flux, you're at risk of it changing without notice.
 
+# v0.3.2
+
+- **Bug Fix**
+  - support values in type casts, fix #50 (@gcanti)
+- **Internal**
+  - add `$Abstract` and `$Subtype` Flow magic types (@gcanti)
+
 ## v0.3.1
 
 - **Bug Fix**

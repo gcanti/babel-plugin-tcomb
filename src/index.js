@@ -278,6 +278,8 @@ export default function ({ types: t, template }) {
       || name === '$Shape'
       || name === '$Keys'
       || name === '$Diff'
+      || name === '$Abstract'
+      || name === '$Subtype'
   }
 
   function getGenericTypeAnnotation({ annotation, typeName, typeParameters }) {
@@ -375,10 +377,14 @@ export default function ({ types: t, template }) {
   }
 
   function getAssertArgumentName(id) {
-    if (id.type === 'MemberExpression') {
+    const type = id.type
+    if (type === 'MemberExpression') {
       return `${getAssertArgumentName(id.object)}.${id.property.name}`
     }
-    return id.name
+    if (type === 'Identifier') {
+      return id.name
+    }
+    return type
   }
 
   function getAssert({ id, optional, annotation, name }, typeParameters) {

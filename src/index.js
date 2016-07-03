@@ -201,21 +201,32 @@ export default function ({ types: t, template }) {
 
   function getNumericLiteralType(value) {
     const n = t.identifier('n')
-    return t.callExpression(
-      t.memberExpression(tcombId, t.identifier('refinement')),
-      [
-        getNumberType(),
-        t.functionExpression(null, [n], t.blockStatement([
-          t.returnStatement(
-            t.binaryExpression(
-              '===',
-              n,
-              t.numericLiteral(value)
-            )
-          )
-        ]))
-      ]
-    )
+    const type = getNumberType()
+    const predicate = t.functionExpression(null, [n], t.blockStatement([
+      t.returnStatement(
+        t.binaryExpression(
+          '===',
+          n,
+          t.numericLiteral(value)
+        )
+      )
+    ]))
+    return getRefinementCombinator(type, predicate)
+  }
+
+  function getBooleanLiteralType(value) {
+    const b = t.identifier('b')
+    const type = getBooleanType()
+    const predicate = t.functionExpression(null, [b], t.blockStatement([
+      t.returnStatement(
+        t.binaryExpression(
+          '===',
+          b,
+          t.booleanLiteral(value)
+        )
+      )
+    ]))
+    return getRefinementCombinator(type, predicate)
   }
 
   //
@@ -370,6 +381,9 @@ export default function ({ types: t, template }) {
 
       case 'NumericLiteralTypeAnnotation' :
         return getNumericLiteralType(annotation.value, typeName)
+
+      case 'BooleanLiteralTypeAnnotation' :
+        return getBooleanLiteralType(annotation.value, typeName)
 
       default :
         throw new Error(`Unsupported type annotation: ${annotation.type}`)

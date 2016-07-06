@@ -1,4 +1,4 @@
-Babel plugin for static and runtime type checking using Flow and tcomb.
+}Babel plugin for static and runtime type checking using Flow and tcomb.
 
 **Tools**
 
@@ -322,3 +322,79 @@ Definition files for `tcomb` and `tcomb-react` are temporarily published [here](
 # Plugin config
 
 - `skipAsserts: boolean = false` removes the asserts and keeps the domain models
+
+# Under the hood
+
+## Primitives
+
+```js
+type MyString = string;
+type MyNumber = number;
+type MyBoolean = boolean;
+type MyVoid = void;
+type MyNull = null;
+```
+
+compiles to
+
+```js
+import _t from "tcomb";
+
+const MyString = _t.String;
+const MyNumber = _t.Number;
+const MyBoolean = _t.Boolean;
+const MyVoid = _t.Nil;
+const MyNull = _t.Nil;
+```
+
+## Functions
+
+```js
+function sum(a: number, b: number): number {
+  return a + b
+}
+```
+
+compiles to
+
+```js
+import _t from "tcomb";
+
+function sum(a, b) {
+  _assert(a, _t.Number, "a");
+  _assert(b, _t.Number, "b");
+
+  const ret = function (a, b) {
+    return a + b;
+  }.call(this, a, b);
+
+  _assert(ret, _t.Number, "return value");
+  return ret;
+}
+```
+
+where `_assert` is an helper function injected by `babel-plugin-tcomb`.
+
+# Type aliases
+
+```js
+type Person = {
+  name: string,
+  surname: ?string,
+  age: number,
+  tags: Array<string>
+};
+```
+
+compiles to
+
+```js
+import _t from "tcomb";
+
+const Person = _t.interface({
+  name: _t.String,
+  surname: _t.maybe(_t.String),
+  age: _t.Number,
+  tags: _t.list(_t.String)
+}, "Person");
+```

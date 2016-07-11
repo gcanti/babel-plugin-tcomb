@@ -686,6 +686,31 @@ export default function ({ types: t, template }) {
     return node.declaration && ( node.declaration.type === 'TypeAlias' || node.declaration.type === 'InterfaceDeclaration' )
   }
 
+  function getTypeCheckASTForVariableDeclarator(id, tempValueRef) {
+    if (!id.typeAnnotation) {
+      return
+    }
+
+    return getAssert({
+      id: tempValueRef ? tempValueRef : t.identifier(id.name),
+      name: t.stringLiteral(id.name || tempValueRef.name),
+      annotation: id.typeAnnotation.typeAnnotation
+    })
+  }
+
+  function getWrappedFunctionVariableDeclaratorWithTypeCheckAST(declarator, tempValueRef, assertAST) {
+    return t.variableDeclarator(
+      declarator.id,
+      t.callExpression(
+        t.functionExpression(null, [tempValueRef], t.blockStatement([
+          assertAST,
+          t.returnStatement(tempValueRef)
+        ].filter(Boolean))),
+        [declarator.init]
+      )
+    )
+  }
+
   //
   // visitors
   //
@@ -838,6 +863,123 @@ export default function ({ types: t, template }) {
             hasAsserts = true
             node.body.body.unshift(...argumentChecks)
           }
+        }
+        catch (error) {
+          buildCodeFrameError(path, error)
+        }
+      },
+
+      VariableDeclaration(path, state) {
+        if (state.opts[SKIP_ASSERTS_OPTION]) {
+          return
+        }
+
+        const isInForStatement = path.parentPath.isForXStatement() || path.parentPath.isForStatement() || path.parentPath.isForInStatement()
+        const node = path.node
+        try {
+          let replaceDeclaration = false
+          const assertsAST = []
+          const variableDeclaration = t.variableDeclaration(
+            node.kind,
+            node.declarations.map(declarator => {
+              const id = declarator.id
+
+              if (id.hasBeenTypeChecked) {
+                return declarator
+              }
+
+              const typeAnnotation = id.typeAnnotation && id.typeAnnotation.typeAnnotation
+              id.savedTypeAnnotation = typeAnnotation
+
+              if (!declarator.init || !id.savedTypeAnnotation) {
+                return declarator
+              }
+
+              const isIdentifier = t.isIdentifier(id)
+              const tempValueRef = isIdentifier && !isInForStatement ? undefined : path.scope.generateUidIdentifierBasedOnNode(declarator)
+              const assertAST = getTypeCheckASTForVariableDeclarator(id, tempValueRef)
+              id.hasBeenTypeChecked = true
+
+              if (!assertAST) {
+                return declarator
+              }
+
+              if (isIdentifier && !isInForStatement) {
+                assertsAST.push(assertAST)
+                return declarator
+              }
+
+              replaceDeclaration = true
+
+              return getWrappedFunctionVariableDeclaratorWithTypeCheckAST(
+                declarator,
+                tempValueRef,
+                assertAST
+              )
+            })
+          )
+
+          if (replaceDeclaration) {
+            path.replaceWith(variableDeclaration)
+          }
+
+          if (assertsAST.length) {
+            if (!isInForStatement) {
+              assertsAST.forEach(assertAST => path.insertAfter(assertAST))
+            } else {
+              let body = path.parentPath.get('body')
+              if (body.type !== 'BlockStatement') {
+                const block = t.blockStatement([body.node])
+                body.replaceWith(block)
+                body = path.parentPath.get('body')
+              }
+              body.insertBefore(assertsAST)
+            }
+          }
+        }
+        catch (error) {
+          buildCodeFrameError(path, error)
+        }
+      },
+
+      AssignmentExpression(path, state) {
+        if (state.opts[SKIP_ASSERTS_OPTION]) {
+          return
+        }
+
+        const { node, scope } = path
+
+        try {
+          if (node.hasBeenTypeChecked) {
+            return
+          }
+
+          let typeAnnotation
+          if (t.isIdentifier(node.left)) {
+            const binding = scope.getBinding(node.left.name)
+            if (!binding || binding.path.type !== 'VariableDeclarator') {
+              return
+            }
+
+            if (binding.kind === 'const') {
+              throw new Error(`Cannot redeclare ${node.left.name}`)
+            }
+
+            const declaratorId = binding.path.get('id')
+            typeAnnotation = declaratorId.node.savedTypeAnnotation
+          }
+
+          if (!typeAnnotation || typeAnnotation.type === 'AnyTypeAnnotation') {
+            return
+          }
+
+          node.hasBeenTypeChecked = true
+          const id = node.left
+
+          path.insertAfter(getAssert({
+            id: t.identifier(id.name),
+            annotation: typeAnnotation
+          }))
         }
         catch (error) {
           buildCodeFrameError(path, error)

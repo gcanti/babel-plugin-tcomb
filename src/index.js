@@ -705,6 +705,62 @@ export default function ({ types: t, template }) {
     })
   }
 
+  function findTypeAnnotationInObjectPattern(name, objectPattern, objectTypeAnnotation) {
+    if (!objectTypeAnnotation || !t.isObjectTypeAnnotation(objectTypeAnnotation)) {
+      return
+    }
+
+    for (let property of objectPattern.properties) {
+      const typeAnnotation = objectTypeAnnotation.properties.find(propType => propType.key.name === property.key.name)
+      if (!typeAnnotation) {
+        continue
+      }
+
+      if (t.isIdentifier(property.value) && name === property.value.name) {
+        return typeAnnotation.value
+      } else if (t.isObjectPattern(property.value)) {
+        const result = findTypeAnnotationInObjectPattern(name, property.value, typeAnnotation.value)
+        if (result) {
+          return result
+        }
+      } else if (t.isArrayPattern(property.value)) {
+        const result = findTypeAnnotationInArrayPattern(name, property.value, typeAnnotation.value)
+        if (result) {
+          return result
+        }
+      }
+    }
+  }
+
+  function findTypeAnnotationInArrayPattern(name, arrayPattern, arrayTypeAnnotation) {
+    const isGenericArray = arrayTypeAnnotation && t.isGenericTypeAnnotation(arrayTypeAnnotation) && arrayTypeAnnotation.id.name === 'Array'
+    if (!arrayTypeAnnotation || !(t.isTupleTypeAnnotation(arrayTypeAnnotation) || isGenericArray)) {
+      return
+    }
+
+    for (let i = 0, element, length = arrayPattern.elements.length; i < length; i++) {
+      element = arrayPattern.elements[i]
+      const typeAnnotation = isGenericArray ? arrayTypeAnnotation.typeParameters.params[0] : arrayTypeAnnotation.types[i]
+      if (!typeAnnotation) {
+        continue
+      }
+
+      if (t.isIdentifier(element)) {
+        return typeAnnotation
+      } else if (t.isObjectPattern(element)) {
+        const result = findTypeAnnotationInObjectPattern(name, element, typeAnnotation)
+        if (result) {
+          return result
+        }
+      } else if (t.isArrayPattern(element)) {
+        const result = findTypeAnnotationInArrayPattern(name, element, typeAnnotation)
+        if (result) {
+          return result
+        }
+      }
+    }
+  }
+
   //
   // visitors
   //
@@ -907,17 +963,24 @@ export default function ({ types: t, template }) {
 
           let typeAnnotation
           if (t.isIdentifier(node.left)) {
-            const binding = scope.getBinding(node.left.name)
+            const name = node.left.name
+            const binding = scope.getBinding(name)
             if (!binding || binding.path.type !== 'VariableDeclarator') {
               return
             }
 
             if (binding.kind === 'const') {
-              throw new Error(`Cannot redeclare ${node.left.name}`)
+              throw new Error(`Cannot redeclare ${name}`)
             }
 
-            const declaratorId = binding.path.get('id')
-            typeAnnotation = declaratorId.node.savedTypeAnnotation
+            const declaratorId = binding.path.node.id
+            typeAnnotation = declaratorId.savedTypeAnnotation
+
+            if (t.isObjectPattern(declaratorId)) {
+              typeAnnotation = findTypeAnnotationInObjectPattern(name, declaratorId, typeAnnotation)
+            } else if (t.isArrayPattern(declaratorId)) {
+              typeAnnotation = findTypeAnnotationInArrayPattern(name, declaratorId, typeAnnotation)
+            }
           }
 
           if (!typeAnnotation || typeAnnotation.type === 'AnyTypeAnnotation') {

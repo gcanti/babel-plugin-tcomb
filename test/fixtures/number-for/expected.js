@@ -1,13 +1,3 @@
-for (let i = function (_i) {
-  _assert(_i, _t.Number, "i");
+for (let i = _assert(0, _t.Number, "i"); i < 10; i++) {}
 
-  return _i;
-}(0); i < 10; i++) {}
-
-for (let i = function (_i2) {
-  _assert(_i2, _t.Number, "i");
-
-  return _i2;
-}(0); i < 10; _temp = i = increment(i), _assert(i, _t.Number, "i"), _temp) {
-  var _temp;
-}
+for (let i = _assert(0, _t.Number, "i"); i < 10; i = _assert(increment(i), _t.Number, "i")) {}

@@ -401,16 +401,19 @@ export default function ({ types: t, template }) {
     return type
   }
 
-  function getAssert({ id, optional, annotation, name }, typeParameters) {
+  function getAssertCallExpression({ id, optional, annotation, name }, typeParameters) {
     let typeAST = getType({ annotation, typeParameters })
     if (optional) {
       typeAST = getMaybeCombinator(typeAST)
     }
     name = name || t.stringLiteral(getAssertArgumentName(id))
-    return t.expressionStatement(t.callExpression(
+    return t.callExpression(
       assertId,
       [id, typeAST, name]
-    ))
+    )
+  }
+  function getAssert({ id, optional, annotation, name }, typeParameters) {
+    return t.expressionStatement(getAssertCallExpression({ id, optional, annotation, name }, typeParameters))
   }
 
   function isObjectPattern(node) {
@@ -686,29 +689,20 @@ export default function ({ types: t, template }) {
     return node.declaration && ( node.declaration.type === 'TypeAlias' || node.declaration.type === 'InterfaceDeclaration' )
   }
 
-  function getTypeCheckASTForVariableDeclarator(id, tempValueRef) {
-    if (!id.typeAnnotation) {
-      return
-    }
-
-    return getAssert({
-      id: tempValueRef ? tempValueRef : t.identifier(id.name),
-      name: t.stringLiteral(id.name || tempValueRef.name),
-      annotation: id.typeAnnotation.typeAnnotation
+  function getWrappedVariableDeclaratorInitWithTypeCheckAST(declarator) {
+    return getAssertCallExpression({
+      id: declarator.init,
+      name: t.stringLiteral(declarator.id.name || 'destructuring value'),
+      annotation: declarator.id.typeAnnotation.typeAnnotation
     })
   }
 
-  function getWrappedFunctionVariableDeclaratorWithTypeCheckAST(declarator, tempValueRef, assertAST) {
-    return t.variableDeclarator(
-      declarator.id,
-      t.callExpression(
-        t.functionExpression(null, [tempValueRef], t.blockStatement([
-          assertAST,
-          t.returnStatement(tempValueRef)
-        ].filter(Boolean))),
-        [declarator.init]
-      )
-    )
+  function getWrappedAssignmentWithTypeCheckAST(node, typeAnnotation) {
+    return getAssertCallExpression({
+      id: node.right,
+      name: t.stringLiteral(node.left.name || 'destructuring value'),
+      annotation: typeAnnotation
+    })
   }
 
   //
@@ -874,68 +868,25 @@ export default function ({ types: t, template }) {
           return
         }
 
-        const isInForStatement = path.parentPath.isForXStatement() || path.parentPath.isForStatement() || path.parentPath.isForInStatement()
         const node = path.node
         try {
-          let replaceDeclaration = false
-          const assertsAST = []
-          const variableDeclaration = t.variableDeclaration(
-            node.kind,
-            node.declarations.map(declarator => {
-              const id = declarator.id
+          node.declarations.forEach(declarator => {
+            const id = declarator.id
 
-              if (id.hasBeenTypeChecked) {
-                return declarator
-              }
-
-              const typeAnnotation = id.typeAnnotation && id.typeAnnotation.typeAnnotation
-              id.savedTypeAnnotation = typeAnnotation
-
-              if (!declarator.init || !id.savedTypeAnnotation) {
-                return declarator
-              }
-
-              const isIdentifier = t.isIdentifier(id)
-              const tempValueRef = isIdentifier && !isInForStatement ? undefined : path.scope.generateUidIdentifierBasedOnNode(declarator)
-              const assertAST = getTypeCheckASTForVariableDeclarator(id, tempValueRef)
-              id.hasBeenTypeChecked = true
-
-              if (!assertAST) {
-                return declarator
-              }
-
-              if (isIdentifier && !isInForStatement) {
-                assertsAST.push(assertAST)
-                return declarator
-              }
-
-              replaceDeclaration = true
-
-              return getWrappedFunctionVariableDeclaratorWithTypeCheckAST(
-                declarator,
-                tempValueRef,
-                assertAST
-              )
-            })
-          )
-
-          if (replaceDeclaration) {
-            path.replaceWith(variableDeclaration)
-          }
-
-          if (assertsAST.length) {
-            if (!isInForStatement) {
-              assertsAST.forEach(assertAST => path.insertAfter(assertAST))
-            } else {
-              let body = path.parentPath.get('body')
-              if (body.type !== 'BlockStatement') {
-                const block = t.blockStatement([body.node])
-                body.replaceWith(block)
-                body = path.parentPath.get('body')
-              }
-              body.insertBefore(assertsAST)
+            if (id.hasBeenTypeChecked) {
+              return declarator
             }
-          }
+
+            const typeAnnotation = id.typeAnnotation && id.typeAnnotation.typeAnnotation
+            id.savedTypeAnnotation = typeAnnotation
+
+            if (!declarator.init || !id.savedTypeAnnotation) {
+              return
+            }
+
+            declarator.init = getWrappedVariableDeclaratorInitWithTypeCheckAST(declarator)
+            id.hasBeenTypeChecked = true
+          })
         }
         catch (error) {
           buildCodeFrameError(path, error)
@@ -974,12 +925,7 @@ export default function ({ types: t, template }) {
           }
 
           node.hasBeenTypeChecked = true
-          const id = node.left
-
-          path.insertAfter(getAssert({
-            id: t.identifier(id.name),
-            annotation: typeAnnotation
-          }))
+          node.right = getWrappedAssignmentWithTypeCheckAST(node, typeAnnotation)
         }
         catch (error) {
           buildCodeFrameError(path, error)

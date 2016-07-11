@@ -1,17 +1,8 @@
-const foo = x;
+const foo = _assert(x, _t.Boolean, "foo");
+let bar = _assert(foo, _t.Boolean, "bar");
 
-_assert(foo, _t.Boolean, "foo");
-
-let bar = foo;
-
-_assert(bar, _t.Boolean, "bar");
-
-bar = true;
-
-_assert(bar, _t.Boolean, "bar");
+bar = _assert(true, _t.Boolean, "bar");
 
 let foobar;
 
-foobar = false;
-
-_assert(foobar, _t.Boolean, "foobar");
+foobar = _assert(false, _t.Boolean, "foobar");

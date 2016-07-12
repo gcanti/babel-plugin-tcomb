@@ -10,6 +10,7 @@
 
 import path from 'path'
 import generate from 'babel-generator'
+import find from 'lodash.find'
 
 const PLUGIN_NAME = 'babel-plugin-tcomb'
 const INTERFACE_COMBINATOR_NAME = 'interface'
@@ -42,23 +43,6 @@ function assign(x, y) {
     }
   }
   return x
-}
-
-if (!Array.prototype.find) {
-  Array.prototype.find = function(predicate) {
-    let list = Object(this)
-    let length = list.length >>> 0
-    let thisArg = arguments[1]
-    let value
-
-    for (let i = 0; i < length; i++) {
-      value = list[i]
-      if (predicate.call(thisArg, value, i, list)) {
-        return value
-      }
-    }
-    return undefined
-  }
 }
 
 export default function ({ types: t, template }) {
@@ -729,7 +713,7 @@ export default function ({ types: t, template }) {
     }
 
     for (let property of objectPattern.properties) {
-      const typeAnnotation = objectTypeAnnotation.properties.find(propType => propType.key.name === property.key.name)
+      const typeAnnotation = find(objectTypeAnnotation.properties,propType => propType.key.name === property.key.name)
       if (!typeAnnotation) {
         continue
       }

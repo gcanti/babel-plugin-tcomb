@@ -713,7 +713,7 @@ export default function ({ types: t, template }) {
     }
 
     for (let property of objectPattern.properties) {
-      const typeAnnotation = find(objectTypeAnnotation.properties,propType => propType.key.name === property.key.name)
+      const typeAnnotation = find(objectTypeAnnotation.properties, propType => propType.key.name === property.key.name)
       if (!typeAnnotation) {
         continue
       }
@@ -931,10 +931,6 @@ export default function ({ types: t, template }) {
           node.declarations.forEach(declarator => {
             const id = declarator.id
 
-            if (id.hasBeenTypeChecked) {
-              return declarator
-            }
-
             const typeAnnotation = id.typeAnnotation && id.typeAnnotation.typeAnnotation
             id.savedTypeAnnotation = typeAnnotation
 
@@ -943,7 +939,6 @@ export default function ({ types: t, template }) {
             }
 
             declarator.init = getWrappedVariableDeclaratorInitWithTypeCheckAST(declarator)
-            id.hasBeenTypeChecked = true
           })
         }
         catch (error) {
@@ -959,10 +954,6 @@ export default function ({ types: t, template }) {
         const { node, scope } = path
 
         try {
-          if (node.hasBeenTypeChecked) {
-            return
-          }
-
           let typeAnnotation
           if (t.isIdentifier(node.left)) {
             const name = node.left.name
@@ -989,7 +980,6 @@ export default function ({ types: t, template }) {
             return
           }
 
-          node.hasBeenTypeChecked = true
           node.right = getWrappedAssignmentWithTypeCheckAST(node, typeAnnotation)
         }
         catch (error) {

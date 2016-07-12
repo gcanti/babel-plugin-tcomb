@@ -962,10 +962,6 @@ export default function ({ types: t, template }) {
               return
             }
 
-            if (binding.kind === 'const') {
-              throw new Error(`Cannot redeclare ${name}`)
-            }
-
             const declaratorId = binding.path.node.id
             typeAnnotation = declaratorId.savedTypeAnnotation
 

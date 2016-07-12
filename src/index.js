@@ -9,6 +9,7 @@
  */
 
 import path from 'path'
+import generate from 'babel-generator'
 
 const PLUGIN_NAME = 'babel-plugin-tcomb'
 const INTERFACE_COMBINATOR_NAME = 'interface'
@@ -41,6 +42,23 @@ function assign(x, y) {
     }
   }
   return x
+}
+
+if (!Array.prototype.find) {
+  Array.prototype.find = function(predicate) {
+    let list = Object(this)
+    let length = list.length >>> 0
+    let thisArg = arguments[1]
+    let value
+
+    for (let i = 0; i < length; i++) {
+      value = list[i]
+      if (predicate.call(thisArg, value, i, list)) {
+        return value
+      }
+    }
+    return undefined
+  }
 }
 
 export default function ({ types: t, template }) {
@@ -692,7 +710,7 @@ export default function ({ types: t, template }) {
   function getWrappedVariableDeclaratorInitWithTypeCheckAST(declarator) {
     return getAssertCallExpression({
       id: declarator.init,
-      name: t.stringLiteral(declarator.id.name || 'destructuring value'),
+      name: t.stringLiteral(declarator.id.name || generate(declarator.id, { concise: true }).code),
       annotation: declarator.id.typeAnnotation.typeAnnotation
     })
   }
@@ -700,7 +718,7 @@ export default function ({ types: t, template }) {
   function getWrappedAssignmentWithTypeCheckAST(node, typeAnnotation) {
     return getAssertCallExpression({
       id: node.right,
-      name: t.stringLiteral(node.left.name || 'destructuring value'),
+      name: t.stringLiteral(node.left.name || generate(node.left, { concise: true }).code),
       annotation: typeAnnotation
     })
   }

@@ -229,6 +229,10 @@ export default function ({ types: t, template }) {
     return getRefinementCombinator(type, predicate)
   }
 
+  function getDateType() {
+    return t.memberExpression(tcombId, t.identifier('Date'))
+  }
+
   //
   // helpers
   //
@@ -307,6 +311,9 @@ export default function ({ types: t, template }) {
     }
     if (name === 'Object') {
       return getObjectType()
+    }
+    if (name === 'Date') {
+      return getDateType()
     }
     if (shouldReturnAnyType(typeParameters, name)) {
       return getAnyType()

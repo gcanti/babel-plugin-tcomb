@@ -9,6 +9,8 @@
  */
 
 import path from 'path'
+import generate from 'babel-generator'
+import find from 'lodash.find'
 
 const PLUGIN_NAME = 'babel-plugin-tcomb'
 const INTERFACE_COMBINATOR_NAME = 'interface'
@@ -279,14 +281,13 @@ export default function ({ types: t, template }) {
     return getExpressionFromGenericTypeAnnotation(annotation.typeParameters.params[0].argument.id)
   }
 
-  function isTypeParameter(name, typeParameters) {
-    return typeParameters && typeParameters.hasOwnProperty(name)
+  function getTypeParameter(name, typeParameters) {
+    return typeParameters && typeParameters.hasOwnProperty(name) ? typeParameters[name] : false
   }
 
   function shouldReturnAnyType(typeParameters, name) {
-    return isTypeParameter(name, typeParameters) // this plugin doesn't handle generics by design
-      // Flow magic types
-      || name === '$Shape'
+    // Flow magic types
+    return name === '$Shape'
       || name === '$Keys'
       || name === '$Diff'
       || name === '$Abstract'
@@ -308,6 +309,18 @@ export default function ({ types: t, template }) {
     if (name === 'Object') {
       return getObjectType()
     }
+
+    const typeParameter = getTypeParameter(name, typeParameters)
+    if (typeParameter) {
+      // only bounded polymorphism is supported at the moment
+      if (typeParameter.bound)
+        return getType({
+          annotation: typeParameter.bound.typeAnnotation
+        })
+
+      return getAnyType()
+    }
+
     if (shouldReturnAnyType(typeParameters, name)) {
       return getAnyType()
     }
@@ -401,16 +414,45 @@ export default function ({ types: t, template }) {
     return type
   }
 
-  function getAssert({ id, optional, annotation, name }, typeParameters) {
+  function isSameType(node, annotationType) {
+    switch (annotationType) {
+      case 'BooleanTypeAnnotation':
+        return node.type === 'BooleanLiteral'
+
+      case 'NumberTypeAnnotation':
+        return node.type === 'NumericLiteral'
+
+      case 'StringTypeAnnotation':
+        return node.type === 'StringLiteral'
+
+      case 'NullLiteralTypeAnnotation':
+        return node.type === 'NullLiteral'
+
+      case 'VoidTypeAnnotation':
+        return node.type === 'Identifier' && node.name === 'undefined'
+    }
+
+    return false
+  }
+
+  function getAssertCallExpression({ id, optional, annotation, name }, typeParameters) {
+    if (isSameType(id, annotation.type)) {
+      // no need to check
+      return id
+    }
+
     let typeAST = getType({ annotation, typeParameters })
     if (optional) {
       typeAST = getMaybeCombinator(typeAST)
     }
     name = name || t.stringLiteral(getAssertArgumentName(id))
-    return t.expressionStatement(t.callExpression(
+    return t.callExpression(
       assertId,
       [id, typeAST, name]
-    ))
+    )
+  }
+  function getAssert({ id, optional, annotation, name }, typeParameters) {
+    return t.expressionStatement(getAssertCallExpression({ id, optional, annotation, name }, typeParameters))
   }
 
   function isObjectPattern(node) {
@@ -499,10 +541,7 @@ export default function ({ types: t, template }) {
   function getTypeParameters(node) {
     const typeParameters = {}
     if (node.typeParameters) {
-      node.typeParameters.params.forEach(param => typeParameters[getTypeParameterName(param)] = true)
-    }
-    if (node.superTypeParameters) {
-      node.superTypeParameters.params.forEach(param => typeParameters[getTypeParameterName(param)] = true)
+      node.typeParameters.params.forEach(param => typeParameters[getTypeParameterName(param)] = param)
     }
     return typeParameters
   }
@@ -686,6 +725,78 @@ export default function ({ types: t, template }) {
     return node.declaration && ( node.declaration.type === 'TypeAlias' || node.declaration.type === 'InterfaceDeclaration' )
   }
 
+  function getWrappedVariableDeclaratorInitWithTypeCheckAST(declarator, typeParameters) {
+    return getAssertCallExpression({
+      id: declarator.init,
+      name: t.stringLiteral(declarator.id.name || generate(declarator.id, { concise: true }).code),
+      annotation: declarator.id.typeAnnotation.typeAnnotation
+    }, typeParameters)
+  }
+
+  function getWrappedAssignmentWithTypeCheckAST(node, typeAnnotation, typeParameters) {
+    return getAssertCallExpression({
+      id: node.right,
+      name: t.stringLiteral(node.left.name || generate(node.left, { concise: true }).code),
+      annotation: typeAnnotation
+    }, typeParameters)
+  }
+
+  function findTypeAnnotationInObjectPattern(name, objectPattern, objectTypeAnnotation) {
+    if (!objectTypeAnnotation || !t.isObjectTypeAnnotation(objectTypeAnnotation)) {
+      return
+    }
+
+    for (let property of objectPattern.properties) {
+      const typeAnnotation = find(objectTypeAnnotation.properties, propType => propType.key.name === property.key.name)
+      if (!typeAnnotation) {
+        continue
+      }
+
+      if (t.isIdentifier(property.value) && name === property.value.name) {
+        return typeAnnotation.value
+      } else if (t.isObjectPattern(property.value)) {
+        const result = findTypeAnnotationInObjectPattern(name, property.value, typeAnnotation.value)
+        if (result) {
+          return result
+        }
+      } else if (t.isArrayPattern(property.value)) {
+        const result = findTypeAnnotationInArrayPattern(name, property.value, typeAnnotation.value)
+        if (result) {
+          return result
+        }
+      }
+    }
+  }
+
+  function findTypeAnnotationInArrayPattern(name, arrayPattern, arrayTypeAnnotation) {
+    const isGenericArray = arrayTypeAnnotation && t.isGenericTypeAnnotation(arrayTypeAnnotation) && arrayTypeAnnotation.id.name === 'Array'
+    if (!arrayTypeAnnotation || !(t.isTupleTypeAnnotation(arrayTypeAnnotation) || isGenericArray)) {
+      return
+    }
+
+    for (let i = 0, element, length = arrayPattern.elements.length; i < length; i++) {
+      element = arrayPattern.elements[i]
+      const typeAnnotation = isGenericArray ? arrayTypeAnnotation.typeParameters.params[0] : arrayTypeAnnotation.types[i]
+      if (!typeAnnotation) {
+        continue
+      }
+
+      if (t.isIdentifier(element)) {
+        return typeAnnotation
+      } else if (t.isObjectPattern(element)) {
+        const result = findTypeAnnotationInObjectPattern(name, element, typeAnnotation)
+        if (result) {
+          return result
+        }
+      } else if (t.isArrayPattern(element)) {
+        const result = findTypeAnnotationInArrayPattern(name, element, typeAnnotation)
+        if (result) {
+          return result
+        }
+      }
+    }
+  }
+
   //
   // visitors
   //
@@ -802,7 +913,7 @@ export default function ({ types: t, template }) {
         const node = path.node
         const typeParameters = getTypeParameters(node)
         path.traverse({
-          Function(path) {
+          'Function|VariableDeclaration|AssignmentExpression'(path) {
             const node = path.node
             node._typeParameters = assign(typeParameters, node._typeParameters)
           }
@@ -838,6 +949,72 @@ export default function ({ types: t, template }) {
             hasAsserts = true
             node.body.body.unshift(...argumentChecks)
           }
+        }
+        catch (error) {
+          buildCodeFrameError(path, error)
+        }
+      },
+
+      VariableDeclaration(path, state) {
+        if (state.opts[SKIP_ASSERTS_OPTION]) {
+          return
+        }
+
+        const node = path.node
+        try {
+          node.declarations.forEach(declarator => {
+            const id = declarator.id
+
+            const typeAnnotation = id.typeAnnotation && id.typeAnnotation.typeAnnotation
+            id.savedTypeAnnotation = typeAnnotation
+
+            if (!declarator.init || !id.savedTypeAnnotation) {
+              return
+            }
+
+            hasAsserts = true
+            const typeParameters = node._typeParameters
+            declarator.init = getWrappedVariableDeclaratorInitWithTypeCheckAST(declarator, typeParameters)
+          })
+        }
+        catch (error) {
+          buildCodeFrameError(path, error)
+        }
+      },
+
+      AssignmentExpression(path, state) {
+        if (state.opts[SKIP_ASSERTS_OPTION]) {
+          return
+        }
+
+        const { node, scope } = path
+
+        try {
+          let typeAnnotation
+          if (t.isIdentifier(node.left)) {
+            const name = node.left.name
+            const binding = scope.getBinding(name)
+            if (!binding || binding.path.type !== 'VariableDeclarator') {
+              return
+            }
+
+            const declaratorId = binding.path.node.id
+            typeAnnotation = declaratorId.savedTypeAnnotation
+
+            if (t.isObjectPattern(declaratorId)) {
+              typeAnnotation = findTypeAnnotationInObjectPattern(name, declaratorId, typeAnnotation)
+            } else if (t.isArrayPattern(declaratorId)) {
+              typeAnnotation = findTypeAnnotationInArrayPattern(name, declaratorId, typeAnnotation)
+            }
+          }
+
+          if (!typeAnnotation || typeAnnotation.type === 'AnyTypeAnnotation') {
+            return
+          }
+
+          const typeParameters = node._typeParameters
+          hasAsserts = true
+          node.right = getWrappedAssignmentWithTypeCheckAST(node, typeAnnotation, typeParameters)
         }
         catch (error) {
           buildCodeFrameError(path, error)

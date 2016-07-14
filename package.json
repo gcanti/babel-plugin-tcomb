@@ -52,5 +52,9 @@
     "type-checking",
     "types",
     "runtime"
-  ]
+  ],
+  "dependencies": {
+    "babel-generator": "^6.11.0",
+    "lodash.find": "^4.4.0"
+  }
 }

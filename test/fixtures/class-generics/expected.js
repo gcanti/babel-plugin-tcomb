@@ -31,8 +31,8 @@ class C extends B {
 
 class D extends E {
   foo(x) {
-    _assert(x, _t.Any, "x");
+    _assert(x, F, "x");
 
-    const y = _assert(x, _t.Any, "y");
+    const y = _assert(x, F, "y");
   }
 }

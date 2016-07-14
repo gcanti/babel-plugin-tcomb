@@ -1,8 +1,8 @@
 const foo: boolean = x;
 let bar: bool = foo;
 
-bar = true;
+bar = x;
 
 let foobar: boolean;
 
-foobar = false;
+foobar = x;

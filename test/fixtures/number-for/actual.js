@@ -1,3 +1,3 @@
-for (let i: number = 0; i < 10; i++) {}
+for (let i: number = x; i < 10; i++) {}
 
-for (let i: number = 0; i < 10; i = increment(i)) {}
+for (let i: number = x; i < 10; i = increment(i)) {}

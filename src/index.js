@@ -9,6 +9,7 @@
  */
 
 import path from 'path'
+import generate from 'babel-generator'
 
 const PLUGIN_NAME = 'babel-plugin-tcomb'
 const INTERFACE_COMBINATOR_NAME = 'interface'
@@ -391,14 +392,7 @@ export default function ({ types: t, template }) {
   }
 
   function getAssertArgumentName(id) {
-    const type = id.type
-    if (type === 'MemberExpression') {
-      return `${getAssertArgumentName(id.object)}.${id.property.name}`
-    }
-    if (type === 'Identifier') {
-      return id.name
-    }
-    return type
+    return generate(id, { concise: true }).code
   }
 
   function getAssert({ id, optional, annotation, name }, typeParameters) {

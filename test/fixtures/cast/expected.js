@@ -18,5 +18,5 @@ export function getUser(userId) {
   return ret;
 }
 
-const a = _assert('a string', A, 'StringLiteral');
-const b = _assert({}, B, 'ObjectExpression');
+const a = _assert('a string', A, '\'a string\'');
+const b = _assert({}, B, '{}');

@@ -257,7 +257,7 @@ export default function ({ types: t, template }) {
     const props = properties
       .map(prop => {
         const name = t.identifier(prop.key.name)
-        let type = getType({ annotation: prop.value, typeParameters })
+        let type = getType(prop.value, typeParameters)
         if (prop.optional) {
           type = getMaybeCombinator(type)
         }
@@ -294,14 +294,14 @@ export default function ({ types: t, template }) {
       || name === '$Subtype'
   }
 
-  function getGenericTypeAnnotation({ annotation, typeName, typeParameters }) {
+  function getGenericTypeAnnotation(annotation, typeParameters, typeName) {
     const name = annotation.id.name
     if (name === 'Array') {
       if (!annotation.typeParameters || annotation.typeParameters.params.length !== 1) {
         throw new Error(`Unsupported Array type annotation: incorrect number of type parameters (expected 1)`)
       }
       const typeParameter = annotation.typeParameters.params[0]
-      return getListCombinator(getType({ annotation: typeParameter, typeParameters }), typeName)
+      return getListCombinator(getType(typeParameter, typeParameters), typeName)
     }
     if (name === 'Function') {
       return getFunctionType()
@@ -319,44 +319,43 @@ export default function ({ types: t, template }) {
     return gta
   }
 
-  function getType({ annotation, typeName, typeParameters }) {
+  function getType(annotation, typeParameters, typeName) {
     switch (annotation.type) {
 
       case 'GenericTypeAnnotation' :
-        return getGenericTypeAnnotation({ annotation, typeName, typeParameters })
+        return getGenericTypeAnnotation(annotation, typeParameters, typeName)
 
       case 'ArrayTypeAnnotation' :
-        return getListCombinator(getType({ annotation: annotation.elementType, typeParameters }), typeName)
+        return getListCombinator(getType(annotation.elementType, typeParameters), typeName)
 
       case 'NullableTypeAnnotation' :
-        return getMaybeCombinator(getType({ annotation: annotation.typeAnnotation, typeParameters }), typeName)
+        return getMaybeCombinator(getType(annotation.typeAnnotation, typeParameters), typeName)
 
       case 'TupleTypeAnnotation' :
-        return getTupleCombinator(annotation.types.map(annotation => getType({ annotation, typeParameters })), typeName)
+        return getTupleCombinator(annotation.types.map(annotation => getType(annotation, typeParameters)), typeName)
 
       case 'UnionTypeAnnotation' :
         // handle enums
         if (annotation.types.every(n => n.type === 'StringLiteralTypeAnnotation')) {
           return getEnumsCombinator(annotation.types.map(n => n.value), typeName)
         }
-        return getUnionCombinator(annotation.types.map(annotation => getType({ annotation, typeParameters })), typeName)
+        return getUnionCombinator(annotation.types.map(annotation => getType(annotation, typeParameters)), typeName)
 
       case 'ObjectTypeAnnotation' :
         if (annotation.indexers.length === 1) {
           return getDictCombinator(
-            getType({ annotation: annotation.indexers[0].key, typeParameters }),
-            getType({ annotation: annotation.indexers[0].value, typeParameters }),
+            getType(annotation.indexers[0].key, typeParameters),
+            getType(annotation.indexers[0].value, typeParameters),
             typeName
           )
         }
         return getInterfaceCombinator(getObjectExpression(annotation.properties, typeParameters), typeName)
 
       case 'IntersectionTypeAnnotation' :
-        return getIntersectionCombinator(annotation.types.map(annotation => getType({ annotation, typeParameters })), typeName)
+        return getIntersectionCombinator(annotation.types.map(annotation => getType(annotation, typeParameters)), typeName)
 
       case 'FunctionTypeAnnotation' :
         return getFunctionType()
-        // return getFuncCombinator(annotation.params.map((param) => getType(param.typeAnnotation)), getType(annotation.returnType), typeName)
 
       case 'NumberTypeAnnotation' :
         return getNumberType()
@@ -396,7 +395,7 @@ export default function ({ types: t, template }) {
   }
 
   function getAssert({ id, optional, annotation, name }, typeParameters) {
-    let typeAST = getType({ annotation, typeParameters })
+    let typeAST = getType(annotation, typeParameters)
     if (optional) {
       typeAST = getMaybeCombinator(typeAST)
     }
@@ -505,24 +504,21 @@ export default function ({ types: t, template }) {
     const node = path.node
     const typeParameters = getTypeParameters(node)
     const isRecursive = isRecursiveType(node)
-    const args = {
-      annotation: node.right,
-      typeParameters
-    }
+    const annotation = node.right
 
     if (isRecursive) {
       return [
         defineDeclareCombinator(node),
         t.callExpression(
           t.memberExpression(node.id, t.identifier('define')),
-          [getType(args)]
+          [getType(annotation, typeParameters)]
         )
       ]
     }
 
-    args.typeName = t.stringLiteral(node.id.name)
+    const typeName = t.stringLiteral(node.id.name)
     return t.variableDeclaration('const', [
-      t.variableDeclarator(node.id, getType(args))
+      t.variableDeclarator(node.id, getType(annotation, typeParameters, typeName))
     ])
   }
 
@@ -534,24 +530,21 @@ export default function ({ types: t, template }) {
 
   function getInterfaceDefinitionAST(node, typeParameters) {
     const isRecursive = isRecursiveType(node)
-    const args = {
-      annotation: node.body,
-      typeParameters
-    }
+    const annotation = node.body
 
     if (isRecursive) {
       return [
         defineDeclareCombinator(node),
         t.callExpression(
           t.memberExpression(node.id, t.identifier('define')),
-          [getType(args)]
+          [getType(annotation, typeParameters)]
         )
       ]
     }
 
-    args.typeName = t.stringLiteral(node.id.name)
+    const typeName = t.stringLiteral(node.id.name)
     return t.variableDeclaration('const', [
-      t.variableDeclarator(node.id, getType(args))
+      t.variableDeclarator(node.id, getType(annotation, typeParameters, typeName))
     ])
   }
 

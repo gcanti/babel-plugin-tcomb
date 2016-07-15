@@ -52,5 +52,8 @@
     "type-checking",
     "types",
     "runtime"
-  ]
+  ],
+  "dependencies": {
+    "babel-generator": "^6.11.3"
+  }
 }

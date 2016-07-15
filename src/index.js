@@ -372,6 +372,7 @@ export default function ({ types: t, template }) {
       case 'NullLiteralTypeAnnotation' :
         return getNullType()
 
+      case 'TypeofTypeAnnotation' :
       case 'AnyTypeAnnotation' :
       case 'MixedTypeAnnotation' :
         return getAnyType()

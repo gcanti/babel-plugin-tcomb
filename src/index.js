@@ -13,6 +13,7 @@ import generate from 'babel-generator'
 
 const PLUGIN_NAME = 'babel-plugin-tcomb'
 const INTERFACE_COMBINATOR_NAME = 'interface'
+const TYPE_PARAMETERS_STORE_FIELD = '__babel_plugin_tcomb_typeParametersStoreField'
 
 //
 // plugin magic types
@@ -395,16 +396,20 @@ export default function ({ types: t, template }) {
     return generate(id, { concise: true }).code
   }
 
-  function getAssert({ id, optional, annotation, name }, typeParameters) {
+  function getAssertCallExpression(id, annotation, typeParameters, name, optional) {
     let typeAST = getType(annotation, typeParameters)
     if (optional) {
       typeAST = getMaybeCombinator(typeAST)
     }
     name = name || t.stringLiteral(getAssertArgumentName(id))
-    return t.expressionStatement(t.callExpression(
+    return t.callExpression(
       assertId,
       [id, typeAST, name]
-    ))
+    )
+  }
+
+  function getAssert({ id, optional, annotation, name }, typeParameters) {
+    return t.expressionStatement(getAssertCallExpression(id, annotation, typeParameters, name, optional))
   }
 
   function isObjectPattern(node) {
@@ -693,7 +698,7 @@ export default function ({ types: t, template }) {
         },
 
         exit(path, state) {
-          const isAssertTemplateRequired = hasAsserts && !state.opts[SKIP_ASSERTS_OPTION] && !state.opts[SKIP_HELPERS_OPTION]
+          const isAssertTemplateRequired = hasAsserts && !state.opts[SKIP_HELPERS_OPTION]
           const isExtendTemplateRequired = hasExtend && !state.opts[SKIP_HELPERS_OPTION]
           const isImportTcombRequired = hasTypes || isAssertTemplateRequired || isExtendTemplateRequired
 
@@ -787,13 +792,41 @@ export default function ({ types: t, template }) {
       },
 
       Class(path) {
+        // store type parameters so we can read them later
         const node = path.node
         const typeParameters = getTypeParameters(node)
         path.traverse({
-          Function(path) {
-            const node = path.node
-            node._typeParameters = assign(typeParameters, node._typeParameters)
+          Function({ node }) {
+            node[TYPE_PARAMETERS_STORE_FIELD] = assign(typeParameters, node[TYPE_PARAMETERS_STORE_FIELD])
           }
+        })
+      },
+
+      VariableDeclaration(path, state) {
+        if (state.opts[SKIP_ASSERTS_OPTION]) {
+          return
+        }
+
+        const node = path.node
+
+        if (node.kind !== 'const') {
+          return
+        }
+
+        node.declarations.forEach(declarator => {
+          const id = declarator.id
+
+          if (!id.typeAnnotation) {
+            return
+          }
+
+          hasAsserts = true
+          declarator.init = getAssertCallExpression(
+            declarator.init,
+            id.typeAnnotation.typeAnnotation,
+            node[TYPE_PARAMETERS_STORE_FIELD],
+            t.stringLiteral(getAssertArgumentName(id))
+          )
         })
       },
 
@@ -803,7 +836,14 @@ export default function ({ types: t, template }) {
         }
 
         const node = path.node
-        const typeParameters = assign(getTypeParameters(node), node._typeParameters)
+        const typeParameters = assign(getTypeParameters(node), node[TYPE_PARAMETERS_STORE_FIELD])
+
+        // store type parameters so we can read them later
+        path.traverse({
+          'VariableDeclaration'({ node }) {
+            node[TYPE_PARAMETERS_STORE_FIELD] = assign(typeParameters, node[TYPE_PARAMETERS_STORE_FIELD])
+          }
+        })
 
         try {
           // Firstly let's replace arrow function expressions into

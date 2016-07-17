@@ -376,6 +376,7 @@ export default function ({ types: t, template }) {
       case 'TypeofTypeAnnotation' :
       case 'AnyTypeAnnotation' :
       case 'MixedTypeAnnotation' :
+      case 'ExistentialTypeParam' :
         return getAnyType()
 
       case 'StringLiteralTypeAnnotation' :

@@ -12,24 +12,27 @@ import path from 'path'
 import generate from 'babel-generator'
 
 const PLUGIN_NAME = 'babel-plugin-tcomb'
-const INTERFACE_COMBINATOR_NAME = 'interface'
 const TYPE_PARAMETERS_STORE_FIELD = '__babel_plugin_tcomb_typeParametersStoreField'
+const IS_RECURSIVE_STORE_FIELD = '__babel_plugin_tcomb_isRecursiveStoreField'
+const REFINEMENT_PREDICATE_ID_STORE_FIELD = '__babel_plugin_tcomb_refinementPredicateIdStoreField'
 
-//
+const flowMagicTypes = {
+  '$Shape': true,
+  '$Keys': true,
+  '$Diff': true,
+  '$Abstract': true,
+  '$Subtype': true
+}
+
 // plugin magic types
-//
-
 const MAGIC_REFINEMENT_NAME = '$Refinement'
 const MAGIC_REIFY_NAME = '$Reify'
-
 const RESERVED_NAMES = {
   [MAGIC_REFINEMENT_NAME]: true,
   [MAGIC_REIFY_NAME]: true
 }
 
-//
 // plugin config
-//
 
 // useful for tests
 const SKIP_HELPERS_OPTION = 'skipHelpers'
@@ -84,32 +87,34 @@ export default function ({ types: t, template }) {
   // combinators
   //
 
-  function getListCombinator(type, name) {
+  function addTypeName(combinatorArguments, typeName) {
+    if (t.isStringLiteral(typeName)) {
+      combinatorArguments.push(typeName)
+    }
+    return combinatorArguments
+  }
+
+  function callCombinator(combinatorId, combinatorArguments, typeName) {
     return t.callExpression(
-      t.memberExpression(tcombId, t.identifier('list')),
-      addTypeName([type], name)
+      t.memberExpression(tcombId, combinatorId),
+      addTypeName(combinatorArguments, typeName)
     )
+  }
+
+  function getListCombinator(type, name) {
+    return callCombinator(t.identifier('list'), [type], name)
   }
 
   function getMaybeCombinator(type, name) {
-    return t.callExpression(
-      t.memberExpression(tcombId, t.identifier('maybe')),
-      addTypeName([type], name)
-    )
+    return callCombinator(t.identifier('maybe'), [type], name)
   }
 
   function getTupleCombinator(types, name) {
-    return t.callExpression(
-      t.memberExpression(tcombId, t.identifier('tuple')),
-      addTypeName([t.arrayExpression(types)], name)
-    )
+    return callCombinator(t.identifier('tuple'), [t.arrayExpression(types)], name)
   }
 
   function getUnionCombinator(types, name) {
-    return t.callExpression(
-      t.memberExpression(tcombId, t.identifier('union')),
-      addTypeName([t.arrayExpression(types)], name)
-    )
+    return callCombinator(t.identifier('union'), [t.arrayExpression(types)], name)
   }
 
   function getEnumsCombinator(enums, name) {
@@ -120,22 +125,24 @@ export default function ({ types: t, template }) {
   }
 
   function getDictCombinator(domain, codomain, name) {
-    return t.callExpression(
-      t.memberExpression(tcombId, t.identifier('dict')),
-      addTypeName([domain, codomain], name)
-    )
+    return callCombinator(t.identifier('dict'), [domain, codomain], name)
   }
 
   function getRefinementCombinator(type, predicate, name) {
-    return t.callExpression(
-      t.memberExpression(tcombId, t.identifier('refinement')),
-      addTypeName([type, predicate], name)
-    )
+    return callCombinator(t.identifier('refinement'), [type, predicate], name)
+  }
+
+  function getInterfaceCombinator(props, name) {
+    return callCombinator(t.identifier('interface'), [props], name)
+  }
+
+  function getDeclareCombinator(name) {
+    return callCombinator(t.identifier('declare'), [name])
   }
 
   function getIntersectionCombinator(types, name) {
-    const intersections = types.filter(t => !(t._refinementPredicateId))
-    const refinements = types.filter(t => t._refinementPredicateId)
+    const intersections = types.filter(t => !(t[REFINEMENT_PREDICATE_ID_STORE_FIELD]))
+    const refinements = types.filter(t => t[REFINEMENT_PREDICATE_ID_STORE_FIELD])
     let intersection = intersections.length > 1 ?
       t.callExpression(
         t.memberExpression(tcombId, t.identifier('intersection')),
@@ -145,65 +152,54 @@ export default function ({ types: t, template }) {
     const len = refinements.length
     if (len > 0) {
       for (let i = 0; i < len; i++) {
-        intersection = getRefinementCombinator(intersection, refinements[i]._refinementPredicateId, name)
+        intersection = getRefinementCombinator(intersection, refinements[i][REFINEMENT_PREDICATE_ID_STORE_FIELD], name)
       }
     }
     return intersection
-  }
-
-  function getInterfaceCombinator(props, name) {
-    return t.callExpression(
-      t.memberExpression(tcombId, t.identifier(INTERFACE_COMBINATOR_NAME)),
-      addTypeName([props], name)
-    )
-  }
-
-  function getDeclareCombinator(name) {
-    return t.callExpression(
-      t.memberExpression(tcombId, t.identifier('declare')),
-      [name]
-    )
   }
 
   //
   // Flow types
   //
 
+  function getTcombType(id) {
+    return t.memberExpression(tcombId, id)
+  }
+
   function getFunctionType() {
-    return t.memberExpression(tcombId, t.identifier('Function'))
+    return getTcombType(t.identifier('Function'))
   }
 
   function getObjectType() {
-    return t.memberExpression(tcombId, t.identifier('Object'))
+    return getTcombType(t.identifier('Object'))
   }
 
   function getNumberType() {
-    return t.memberExpression(tcombId, t.identifier('Number'))
+    return getTcombType(t.identifier('Number'))
   }
 
   function getStringType() {
-    return t.memberExpression(tcombId, t.identifier('String'))
+    return getTcombType(t.identifier('String'))
   }
 
   function getBooleanType() {
-    return t.memberExpression(tcombId, t.identifier('Boolean'))
+    return getTcombType(t.identifier('Boolean'))
   }
 
   function getVoidType() {
-    return t.memberExpression(tcombId, t.identifier('Nil'))
+    return getTcombType(t.identifier('Nil'))
   }
 
   function getNullType() {
-    return t.memberExpression(tcombId, t.identifier('Nil'))
+    return getTcombType(t.identifier('Nil'))
   }
 
   function getAnyType() {
-    return t.memberExpression(tcombId, t.identifier('Any'))
+    return getTcombType(t.identifier('Any'))
   }
 
   function getNumericLiteralType(value) {
     const n = t.identifier('n')
-    const type = getNumberType()
     const predicate = t.functionExpression(null, [n], t.blockStatement([
       t.returnStatement(
         t.binaryExpression(
@@ -213,7 +209,7 @@ export default function ({ types: t, template }) {
         )
       )
     ]))
-    return getRefinementCombinator(type, predicate)
+    return getRefinementCombinator(getNumberType(), predicate)
   }
 
   function getBooleanLiteralType(value) {
@@ -247,13 +243,6 @@ export default function ({ types: t, template }) {
     }
   }
 
-  function addTypeName(args, name) {
-    if (typeof name === 'object') {
-      args.push(name)
-    }
-    return args
-  }
-
   function getObjectExpression(properties, typeParameters) {
     const props = properties
       .map(prop => {
@@ -268,7 +257,7 @@ export default function ({ types: t, template }) {
   }
 
   function getExpressionFromGenericTypeAnnotation(id) {
-    if (id.type === 'QualifiedTypeIdentifier') {
+    if (t.isQualifiedTypeIdentifier(id)) {
       return t.memberExpression(getExpressionFromGenericTypeAnnotation(id.qualification), t.identifier(id.id.name))
     }
     return id
@@ -276,7 +265,7 @@ export default function ({ types: t, template }) {
 
   function getRefinementPredicateId(annotation) {
     if (annotation.typeParameters.params.length !== 1 || !annotation.typeParameters.params[0].argument) {
-      throw new Error(`Invalid refinement definition, example: Refinement<typeof predicate>`)
+      throw new Error(`Invalid refinement definition, example: $Refinement<typeof predicate>`)
     }
     return getExpressionFromGenericTypeAnnotation(annotation.typeParameters.params[0].argument.id)
   }
@@ -285,14 +274,9 @@ export default function ({ types: t, template }) {
     return typeParameters && typeParameters.hasOwnProperty(name)
   }
 
-  function shouldReturnAnyType(typeParameters, name) {
-    return isTypeParameter(name, typeParameters) // this plugin doesn't handle generics by design
-      // Flow magic types
-      || name === '$Shape'
-      || name === '$Keys'
-      || name === '$Diff'
-      || name === '$Abstract'
-      || name === '$Subtype'
+  function shouldReturnAnyType(name, typeParameters) {
+     // this plugin doesn't handle generics by design
+    return isTypeParameter(name, typeParameters) || flowMagicTypes.hasOwnProperty(name)
   }
 
   function getGenericTypeAnnotation(annotation, typeParameters, typeName) {
@@ -310,12 +294,12 @@ export default function ({ types: t, template }) {
     if (name === 'Object') {
       return getObjectType()
     }
-    if (shouldReturnAnyType(typeParameters, name)) {
+    if (shouldReturnAnyType(name, typeParameters)) {
       return getAnyType()
     }
     const gta = getExpressionFromGenericTypeAnnotation(annotation.id)
     if (name === MAGIC_REFINEMENT_NAME) {
-      gta._refinementPredicateId = getRefinementPredicateId(annotation)
+      gta[REFINEMENT_PREDICATE_ID_STORE_FIELD] = getRefinementPredicateId(annotation)
     }
     return gta
   }
@@ -337,7 +321,7 @@ export default function ({ types: t, template }) {
 
       case 'UnionTypeAnnotation' :
         // handle enums
-        if (annotation.types.every(n => n.type === 'StringLiteralTypeAnnotation')) {
+        if (annotation.types.every(n => t.isStringLiteralTypeAnnotation(n))) {
           return getEnumsCombinator(annotation.types.map(n => n.value), typeName)
         }
         return getUnionCombinator(annotation.types.map(annotation => getType(annotation, typeParameters)), typeName)
@@ -398,14 +382,14 @@ export default function ({ types: t, template }) {
   }
 
   function getAssertCallExpression(id, annotation, typeParameters, name, optional) {
-    let typeAST = getType(annotation, typeParameters)
+    let type = getType(annotation, typeParameters)
     if (optional) {
-      typeAST = getMaybeCombinator(typeAST)
+      type = getMaybeCombinator(type)
     }
     name = name || t.stringLiteral(getAssertArgumentName(id))
     return t.callExpression(
       assertId,
-      [id, typeAST, name]
+      [id, type, name]
     )
   }
 
@@ -413,16 +397,12 @@ export default function ({ types: t, template }) {
     return t.expressionStatement(getAssertCallExpression(id, annotation, typeParameters, name, optional))
   }
 
-  function isObjectPattern(node) {
-    return node.type === 'ObjectPattern'
-  }
-
   function getParam(param, i) {
-    if (param.type === 'AssignmentPattern' && param.left.typeAnnotation) {
+    if (t.isAssignmentPattern(param) && param.left.typeAnnotation) {
       return getParam(param.left, i)
     }
     else if (param.typeAnnotation) {
-      if (param.type === 'RestElement') {
+      if (t.isRestElement(param)) {
         return {
           id: param.argument,
           optional: param.optional,
@@ -430,38 +410,38 @@ export default function ({ types: t, template }) {
         }
       }
       return {
-        id: t.identifier(isObjectPattern(param) ? 'arguments[' + i + ']' : param.name),
+        id: t.identifier(t.isObjectPattern(param) ? 'arguments[' + i + ']' : param.name),
         optional: param.optional,
         annotation: param.typeAnnotation.typeAnnotation
       }
     }
   }
 
-  function getFunctionArgumentCheckExpressionsAST(node, typeParameters) {
+  function getFunctionArgumentCheckExpressions(node, typeParameters) {
     const params = node.params.map(getParam).filter(x => x)
     return params.map(param => getAssert(param, typeParameters))
   }
 
-  function getParamNameAST(param) {
-    if (param.type === 'AssignmentPattern') {
-      return getParamNameAST(param.left)
+  function getParamName(param) {
+    if (t.isAssignmentPattern(param)) {
+      return getParamName(param.left)
     }
-    else if (param.type === 'RestElement') {
+    else if (t.isRestElement(param)) {
       return t.restElement(param.argument)
     }
-    else if (isObjectPattern(param)) {
+    else if (t.isObjectPattern(param)) {
       return param
     }
     return t.identifier(param.name)
   }
 
-  function getWrappedFunctionReturnWithTypeCheckAST(node, typeParameters) {
-    const params = node.params.map(getParamNameAST)
+  function getWrappedFunctionReturnWithTypeCheck(node, typeParameters) {
+    const params = node.params.map(getParamName)
     const callParams = params.map(param => {
-      if (isObjectPattern(param)) {
+      if (t.isObjectPattern(param)) {
         return t.objectExpression(param.properties)
       }
-      else if (param.type === 'RestElement') {
+      else if (t.isRestElement(param)) {
         return t.spreadElement(param.argument)
       }
       return param
@@ -490,7 +470,7 @@ export default function ({ types: t, template }) {
   }
 
   function getTypeParameterName(param) {
-    if (param.type === 'GenericTypeAnnotation') {
+    if (t.isGenericTypeAnnotation(param)) {
       return param.id.name
     }
     return param.name
@@ -535,7 +515,7 @@ export default function ({ types: t, template }) {
     ])
   }
 
-  function getInterfaceDefinitionAST(node, typeParameters) {
+  function getInterfaceDefinition(node, typeParameters) {
     const isRecursive = isRecursiveType(node)
     const annotation = node.body
 
@@ -555,7 +535,7 @@ export default function ({ types: t, template }) {
     ])
   }
 
-  function getExtendedInterfaceDefinitionAST(node, typeParameters) {
+  function getExtendedInterfaceDefinition(node, typeParameters) {
     const isRecursive = isRecursiveType(node)
     const mixins = node.extends.filter(m => m.id.name !== MAGIC_REFINEMENT_NAME)
     typeParameters = mixins.reduce((acc, node) => assign(acc, getTypeParameters(node)), typeParameters)
@@ -617,12 +597,12 @@ export default function ({ types: t, template }) {
   }
 
   function isRecursiveType(node) {
-    return node.isRecursive || hasRecursiveComment(node)
+    return node[IS_RECURSIVE_STORE_FIELD] || hasRecursiveComment(node)
   }
 
   function replaceTypeDefintion(path, definition) {
     if (Array.isArray(definition)) {
-      if (path.parentPath.node.type === 'ExportNamedDeclaration') {
+      if (t.isExportNamedDeclaration(path.parentPath.node)) {
         path.parentPath.replaceWithMultiple([
           t.exportNamedDeclaration(definition[0], []),
           definition[1]
@@ -641,7 +621,7 @@ export default function ({ types: t, template }) {
     return path.normalize(source) === source
   }
 
-  function getExternalImportDeclarationAST(path) {
+  function getExternalImportDeclaration(path) {
     const node = path.node
     const source = node.source.value
     const typesId = path.scope.generateUidIdentifier(source)
@@ -672,12 +652,12 @@ export default function ({ types: t, template }) {
            node.typeAnnotation.typeAnnotation.id.name === MAGIC_REIFY_NAME
   }
 
-  function getRuntimeTypeIntrospectionAST(node) {
+  function getRuntimeTypeIntrospection(node) {
     return node.typeAnnotation.typeAnnotation.typeParameters.params[0].id
   }
 
   function isTypeExportNamedDeclaration(node) {
-    return node.declaration && ( node.declaration.type === 'TypeAlias' || node.declaration.type === 'InterfaceDeclaration' )
+    return node.declaration && ( t.isTypeAlias(node.declaration) || t.isInterfaceDeclaration(node.declaration) )
   }
 
   //
@@ -732,7 +712,7 @@ export default function ({ types: t, template }) {
           const source = node.source.value
           if (isExternalImportDeclaration(source)) {
             hasTypes = true
-            path.replaceWithMultiple(getExternalImportDeclarationAST(path))
+            path.replaceWithMultiple(getExternalImportDeclaration(path))
           }
           else {
             // prevent transform-flow-strip-types
@@ -746,7 +726,7 @@ export default function ({ types: t, template }) {
         // prevent transform-flow-strip-types
         if (isTypeExportNamedDeclaration(node)) {
           node.exportKind = 'value'
-          node.declaration.isRecursive = isRecursiveType(node)
+          node.declaration[IS_RECURSIVE_STORE_FIELD] = isRecursiveType(node)
         }
       },
 
@@ -763,10 +743,10 @@ export default function ({ types: t, template }) {
         const typeParameters = getTypeParameters(node)
         if (path.node.extends.length > 0) {
           hasExtend = true
-          replaceTypeDefintion(path, getExtendedInterfaceDefinitionAST(node, typeParameters))
+          replaceTypeDefintion(path, getExtendedInterfaceDefinition(node, typeParameters))
         }
         else {
-          replaceTypeDefintion(path, getInterfaceDefinitionAST(node, typeParameters))
+          replaceTypeDefintion(path, getInterfaceDefinition(node, typeParameters))
         }
       },
 
@@ -774,10 +754,10 @@ export default function ({ types: t, template }) {
         const node = path.node
         if (isRuntimeTypeIntrospection(node)) {
           try {
-            path.replaceWith(getRuntimeTypeIntrospectionAST(node))
+            path.replaceWith(getRuntimeTypeIntrospection(node))
           }
           catch (error) {
-            buildCodeFrameError(path, new Error(`Invalid use of ${MAGIC_REIFY_NAME}`))
+            buildCodeFrameError(path, new Error(`Invalid use of ${MAGIC_REIFY_NAME}, example: const ReifiedMyType = (({}: any): $Reify<MyType>)`))
           }
         }
         else {
@@ -849,7 +829,7 @@ export default function ({ types: t, template }) {
         try {
           // Firstly let's replace arrow function expressions into
           // block statement return structures.
-          if (node.type === 'ArrowFunctionExpression' && node.expression) {
+          if (t.isArrowFunctionExpression(node) && node.expression) {
             node.expression = false
             node.body = t.blockStatement([t.returnStatement(node.body)])
           }
@@ -858,11 +838,11 @@ export default function ({ types: t, template }) {
           // body and insert a type check on the returned value.
           if (node.returnType) {
             hasAsserts = true
-            path.get('body').replaceWithMultiple(getWrappedFunctionReturnWithTypeCheckAST(node, typeParameters))
+            path.get('body').replaceWithMultiple(getWrappedFunctionReturnWithTypeCheck(node, typeParameters))
           }
 
           // Prepend any argument checks to the top of our function body.
-          const argumentChecks = getFunctionArgumentCheckExpressionsAST(node, typeParameters)
+          const argumentChecks = getFunctionArgumentCheckExpressions(node, typeParameters)
           if (argumentChecks.length > 0) {
             hasAsserts = true
             node.body.body.unshift(...argumentChecks)

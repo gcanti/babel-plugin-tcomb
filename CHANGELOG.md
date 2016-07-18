@@ -12,6 +12,14 @@
 **Note**: Gaps between patch versions are faulty/broken releases.
 **Note**: A feature tagged as Experimental is in a high state of flux, you're at risk of it changing without notice.
 
+# v0.3.4
+
+- **New Feature**
+  - Add support for Variable declarations (const) (thanks @christophehurpeau)
+- **Bug Fix**
+  - add support for ExistentialTypeParam, fix #67 (@gcanti)
+  - add support for TypeofTypeAnnotation, fix #63 (@gcanti)
+
 # v0.3.3
 
 - **Bug Fix**

@@ -354,6 +354,20 @@ const MyVoid = _t.Nil;
 const MyNull = _t.Nil;
 ```
 
+## Consts
+
+```js
+const x: number = 1
+```
+
+compiles to
+
+```js
+const x = _assert(x, _t.Number, "x");
+```
+
+Note: `let`s are not supported.
+
 ## Functions
 
 ```js
@@ -382,7 +396,7 @@ function sum(a, b) {
 
 where `_assert` is an helper function injected by `babel-plugin-tcomb`.
 
-# Type aliases
+## Type aliases
 
 ```js
 type Person = {

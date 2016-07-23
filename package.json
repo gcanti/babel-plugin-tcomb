@@ -9,7 +9,8 @@
   "scripts": {
     "lint": "eslint src",
     "build": "babel -d ./lib ./src",
-    "test": "mocha --compilers js:babel-core/register"
+    "test": "mocha --compilers js:babel-core/register",
+    "benchmark": "babel-node benchmark"
   },
   "repository": {
     "type": "git",
@@ -31,6 +32,7 @@
     "babel-plugin-syntax-flow": "6.8.0",
     "babel-plugin-transform-flow-strip-types": "6.8.0",
     "babel-preset-es2015": "6.9.0",
+    "benchmark": "^2.1.0",
     "eslint": "2.9.0",
     "mocha": "2.4.5",
     "tcomb": "^3.0.0"

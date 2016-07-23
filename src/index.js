@@ -59,10 +59,16 @@ export default function ({ types: t, template }) {
 
   const assertTemplate = expression(`
     function assertId(x, type, name) {
-      if (tcombId.isType(type) && type.meta.kind !== 'struct') {
-        type(x, [name + ': ' + tcombId.getTypeName(type)]);
+      function message() {
+        return 'Invalid value ' + tcombId.stringify(x) + ' supplied to ' + name + ' (expected a ' + tcombId.getTypeName(type) + ')';
+      }
+      if (tcombId.isType(type)) {
+        if (!type.is(x)) {
+          type(x, [name + ': ' + tcombId.getTypeName(type)]);
+          tcombId.fail(message());
+        }
       } else if (!(x instanceof type)) {
-        tcombId.fail('Invalid value ' + tcombId.stringify(x) + ' supplied to ' + name + ' (expected a ' + tcombId.getTypeName(type) + ')');
+        tcombId.fail(message());
       }
       return x;
     }
@@ -101,20 +107,37 @@ export default function ({ types: t, template }) {
     )
   }
 
+  const listId = t.identifier('list')
+  const tupleId = t.identifier('tuple')
+  const maybeId = t.identifier('maybe')
+  const unionId = t.identifier('union')
+  const dictId = t.identifier('dict')
+  const refinementId = t.identifier('refinement')
+  const interfaceId = t.identifier('interface')
+  const declareId = t.identifier('declare')
+  const intersectionId = t.identifier('intersection')
+  const functionId = t.identifier('Function')
+  const objectId = t.identifier('Object')
+  const nilId = t.identifier('Nil')
+  const numberId = t.identifier('Number')
+  const stringId = t.identifier('String')
+  const booleanId = t.identifier('Boolean')
+  const anyId = t.identifier('Any')
+
   function getListCombinator(type, name) {
-    return callCombinator(t.identifier('list'), [type], name)
+    return callCombinator(listId, [type], name)
   }
 
   function getMaybeCombinator(type, name) {
-    return callCombinator(t.identifier('maybe'), [type], name)
+    return callCombinator(maybeId, [type], name)
   }
 
   function getTupleCombinator(types, name) {
-    return callCombinator(t.identifier('tuple'), [t.arrayExpression(types)], name)
+    return callCombinator(tupleId, [t.arrayExpression(types)], name)
   }
 
   function getUnionCombinator(types, name) {
-    return callCombinator(t.identifier('union'), [t.arrayExpression(types)], name)
+    return callCombinator(unionId, [t.arrayExpression(types)], name)
   }
 
   function getEnumsCombinator(enums, name) {
@@ -125,19 +148,19 @@ export default function ({ types: t, template }) {
   }
 
   function getDictCombinator(domain, codomain, name) {
-    return callCombinator(t.identifier('dict'), [domain, codomain], name)
+    return callCombinator(dictId, [domain, codomain], name)
   }
 
   function getRefinementCombinator(type, predicate, name) {
-    return callCombinator(t.identifier('refinement'), [type, predicate], name)
+    return callCombinator(refinementId, [type, predicate], name)
   }
 
   function getInterfaceCombinator(props, name) {
-    return callCombinator(t.identifier('interface'), [props], name)
+    return callCombinator(interfaceId, [props], name)
   }
 
   function getDeclareCombinator(name) {
-    return callCombinator(t.identifier('declare'), [name])
+    return callCombinator(declareId, [name])
   }
 
   function getIntersectionCombinator(types, name) {
@@ -145,7 +168,7 @@ export default function ({ types: t, template }) {
     const refinements = types.filter(t => t[REFINEMENT_PREDICATE_ID_STORE_FIELD])
     let intersection = intersections.length > 1 ?
       t.callExpression(
-        t.memberExpression(tcombId, t.identifier('intersection')),
+        t.memberExpression(tcombId, intersectionId),
         addTypeName([t.arrayExpression(intersections)], name)
       ) :
       intersections[0]
@@ -167,35 +190,35 @@ export default function ({ types: t, template }) {
   }
 
   function getFunctionType() {
-    return getTcombType(t.identifier('Function'))
+    return getTcombType(functionId)
   }
 
   function getObjectType() {
-    return getTcombType(t.identifier('Object'))
+    return getTcombType(objectId)
   }
 
   function getNumberType() {
-    return getTcombType(t.identifier('Number'))
+    return getTcombType(numberId)
   }
 
   function getStringType() {
-    return getTcombType(t.identifier('String'))
+    return getTcombType(stringId)
   }
 
   function getBooleanType() {
-    return getTcombType(t.identifier('Boolean'))
+    return getTcombType(booleanId)
   }
 
   function getVoidType() {
-    return getTcombType(t.identifier('Nil'))
+    return getTcombType(nilId)
   }
 
   function getNullType() {
-    return getTcombType(t.identifier('Nil'))
+    return getTcombType(nilId)
   }
 
   function getAnyType() {
-    return getTcombType(t.identifier('Any'))
+    return getTcombType(anyId)
   }
 
   function getNumericLiteralType(value) {
@@ -777,7 +800,8 @@ export default function ({ types: t, template }) {
           return
         }
 
-        node.declarations.forEach(declarator => {
+        for (var i = 0, len = node.declarations.length ; i < len ; i++ ) {
+          const declarator = node.declarations[i]
           const id = declarator.id
 
           if (!id.typeAnnotation) {
@@ -791,7 +815,7 @@ export default function ({ types: t, template }) {
             node[TYPE_PARAMETERS_STORE_FIELD],
             t.stringLiteral(getAssertArgumentName(id))
           )
-        })
+        }
       },
 
       Function(path, state) {

@@ -29,10 +29,18 @@ function foo(x: string) {
 }
 
 function _assert2(x, type, name) {
-  if (_t.isType(type) && type.meta.kind !== 'struct') {
-    type(x, [name + ': ' + _t.getTypeName(type)]);
+  function message() {
+    return 'Invalid value ' + _t.stringify(x) + ' supplied to ' + name + ' (expected a ' + _t.getTypeName(type) + ')';
+  }
+
+  if (_t.isType(type)) {
+    if (!type.is(x)) {
+      type(x, [name + ': ' + _t.getTypeName(type)]);
+
+      _t.fail(message());
+    }
   } else if (!(x instanceof type)) {
-    _t.fail('Invalid value ' + _t.stringify(x) + ' supplied to ' + name + ' (expected a ' + _t.getTypeName(type) + ')');
+    _t.fail(message());
   }
 
   return x;

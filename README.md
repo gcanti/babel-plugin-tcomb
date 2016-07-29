@@ -57,6 +57,13 @@ Then, in your babel configuration (usually in your `.babelrc` file), add (at lea
 }
 ```
 
+**Warning**. If you use multiple presets, you need to specify them in just right order. Example:
+
+```js
+"presets": ["es2015", "react", "stage-0"] // bad
+"presets": ["stage-0", "react", "es2015"] // good
+```
+
 **Important**. `tcomb` must be `require`able
 
 # How it works

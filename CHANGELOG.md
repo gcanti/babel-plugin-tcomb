@@ -12,6 +12,11 @@
 **Note**: Gaps between patch versions are faulty/broken releases.
 **Note**: A feature tagged as Experimental is in a high state of flux, you're at risk of it changing without notice.
 
+# v0.3.5
+
+- **Bug Fix**
+  - avoid detecting relative paths as absolute and replace local with imported, fix #77 (@gcanti, thanks @minedeljkovic)
+
 # v0.3.4
 
 - **New Feature**

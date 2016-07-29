@@ -56,6 +56,7 @@ export default function ({ types: t, template }) {
   let hasAsserts = false
   let hasExtend = false
   let recursiveTypes = []
+  let globals
 
   const assertTemplate = expression(`
     function assertId(x, type, name) {
@@ -297,9 +298,13 @@ export default function ({ types: t, template }) {
     return typeParameters && typeParameters.hasOwnProperty(name)
   }
 
+  function isGlobalType(name) {
+    return globals && globals.hasOwnProperty(name)
+  }
+
   function shouldReturnAnyType(name, typeParameters) {
      // this plugin doesn't handle generics by design
-    return isTypeParameter(name, typeParameters) || flowMagicTypes.hasOwnProperty(name)
+    return isGlobalType(name) || isTypeParameter(name, typeParameters) || flowMagicTypes.hasOwnProperty(name)
   }
 
   function getGenericTypeAnnotation(annotation, typeParameters, typeName) {
@@ -672,7 +677,7 @@ export default function ({ types: t, template }) {
 
       Program: {
 
-        enter(path) {
+        enter(path, state) {
           hasAsserts = false
           hasTypes = false
           hasExtend = false
@@ -680,6 +685,9 @@ export default function ({ types: t, template }) {
           assertId = path.scope.generateUidIdentifier('assert')
           extendId = path.scope.generateUidIdentifier('extend')
           recursiveTypes = []
+          if (!globals && state.opts.globals) {
+            globals = state.opts.globals.reduce((acc, x) => assign(acc, x), {})
+          }
         },
 
         exit(path, state) {

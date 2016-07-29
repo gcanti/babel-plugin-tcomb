@@ -74,7 +74,7 @@ function _assert2(x, type, name) {
 
 })
 
-describe('refinements', () => {
+describe('$Refinement type', () => {
 
   it('should error when a $Refinement interface is defined by the user', () => {
     const source = `
@@ -124,7 +124,7 @@ describe('refinements', () => {
 
 })
 
-describe('reify', () => {
+describe('$Reify type', () => {
 
   it('should error when a $Reify interface is defined by the user', () => {
     const source = `
@@ -170,6 +170,35 @@ describe('reify', () => {
         return true
       }
     })
+  })
+
+})
+
+describe('globals option', () => {
+
+  it('should compile global types to t.Any', () => {
+    const source = `
+    const MyComponent2: ReactClass<Props> = MyComponent;
+    `
+
+    const actual = babel.transform(
+      source, {
+        babelrc: false,
+        plugins: [
+          'syntax-flow',
+          [plugin, {
+            skipHelpers: true,
+            globals: [
+              {
+                'ReactClass': true
+              }
+            ]
+          }]
+        ]
+      }
+    ).code
+    const expected = `const MyComponent2: ReactClass<Props> = _assert(MyComponent, _t.Any, "MyComponent2");`
+    assert.equal(trim(actual), trim(expected))
   })
 
 })

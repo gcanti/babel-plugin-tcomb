@@ -1,6 +1,6 @@
 import _t from "tcomb";
-// recursive
 
+// recursive
 const Path1 = _t.declare("Path1");
 
 Path1.define(_t.interface({

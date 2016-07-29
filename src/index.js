@@ -8,7 +8,6 @@
  *
  */
 
-import path from 'path'
 import generate from 'babel-generator'
 
 const PLUGIN_NAME = 'babel-plugin-tcomb'
@@ -618,7 +617,7 @@ export default function ({ types: t, template }) {
   }
 
   function isExternalImportDeclaration(source) {
-    return path.normalize(source) === source
+    return !(source.indexOf('./') === 0 || source.indexOf('../') === 0)
   }
 
   function getExternalImportDeclaration(path) {
@@ -637,7 +636,7 @@ export default function ({ types: t, template }) {
           specifier.local,
           t.logicalExpression(
             '||',
-            t.memberExpression(typesId, specifier.local),
+            t.memberExpression(typesId, specifier.imported),
             getAnyType()
           )
         )

@@ -171,7 +171,7 @@ describe('emit asserts for: ', () => {
     if ((caseName in skipTests)) {
       return
     }
-    if (!(caseName in { 'typeof': 1 })) {
+    if (!(caseName in { 'function-generics': 1 })) {
       // return
     }
     it(`should ${caseName.split('-').join(' ')}`, () => {

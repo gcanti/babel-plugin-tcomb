@@ -820,7 +820,7 @@ export default function ({ types: t, template }) {
 
         // store type parameters so we can read them later
         path.traverse({
-          'VariableDeclaration'({ node }) {
+          'Function|VariableDeclaration'({ node }) {
             node[TYPE_PARAMETERS_STORE_FIELD] = assign(typeParameters, node[TYPE_PARAMETERS_STORE_FIELD])
           }
         })

@@ -480,9 +480,6 @@ export default function ({ types: t, template }) {
     if (node.typeParameters) {
       node.typeParameters.params.forEach(param => typeParameters[getTypeParameterName(param)] = true)
     }
-    if (node.superTypeParameters) {
-      node.superTypeParameters.params.forEach(param => typeParameters[getTypeParameterName(param)] = true)
-    }
     return typeParameters
   }
 

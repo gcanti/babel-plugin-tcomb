@@ -12,6 +12,12 @@
 **Note**: Gaps between patch versions are faulty/broken releases.
 **Note**: A feature tagged as Experimental is in a high state of flux, you're at risk of it changing without notice.
 
+# v0.3.8
+
+- **Bug Fix**
+  - allow mutually recursive types, fix #84 (@gcanti)
+  - remove babel warning when defining an exported recursive type, fix #82 (@gcanti)
+
 # v0.3.7
 
 - **Bug Fix**

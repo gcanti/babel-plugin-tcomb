@@ -55,6 +55,7 @@ export default function ({ types: t, template }) {
   let hasTypes = false
   let hasAsserts = false
   let hasExtend = false
+  let recursiveTypes = []
 
   const assertTemplate = expression(`
     function assertId(x, type, name) {
@@ -490,13 +491,13 @@ export default function ({ types: t, template }) {
     const annotation = node.right
 
     if (isRecursive) {
-      return [
-        defineDeclareCombinator(node),
+      recursiveTypes.push(
         t.callExpression(
           t.memberExpression(node.id, t.identifier('define')),
           [getType(annotation, typeParameters)]
         )
-      ]
+      )
+      return defineDeclareCombinator(node)
     }
 
     const typeName = t.stringLiteral(node.id.name)
@@ -516,13 +517,13 @@ export default function ({ types: t, template }) {
     const annotation = node.body
 
     if (isRecursive) {
-      return [
-        defineDeclareCombinator(node),
+      recursiveTypes.push(
         t.callExpression(
           t.memberExpression(node.id, t.identifier('define')),
           [getType(annotation, typeParameters)]
         )
-      ]
+      )
+      return defineDeclareCombinator(node)
     }
 
     const typeName = t.stringLiteral(node.id.name)
@@ -546,8 +547,7 @@ export default function ({ types: t, template }) {
     }
 
     if (isRecursive) {
-      return [
-        defineDeclareCombinator(node),
+      recursiveTypes.push(
         t.callExpression(
           t.memberExpression(node.id, t.identifier('define')),
           [
@@ -559,7 +559,8 @@ export default function ({ types: t, template }) {
             )
           ]
         )
-      ]
+      )
+      return defineDeclareCombinator(node)
     }
 
     const typeName = t.stringLiteral(node.id.name)
@@ -594,23 +595,6 @@ export default function ({ types: t, template }) {
 
   function isRecursiveType(node) {
     return node[IS_RECURSIVE_STORE_FIELD] || hasRecursiveComment(node)
-  }
-
-  function replaceTypeDefintion(path, definition) {
-    if (Array.isArray(definition)) {
-      if (t.isExportNamedDeclaration(path.parentPath.node)) {
-        path.parentPath.replaceWithMultiple([
-          t.exportNamedDeclaration(definition[0], []),
-          definition[1]
-        ])
-      }
-      else {
-        path.replaceWithMultiple(definition)
-      }
-    }
-    else {
-      path.replaceWith(definition)
-    }
   }
 
   function isExternalImportDeclaration(source) {
@@ -672,6 +656,7 @@ export default function ({ types: t, template }) {
           tcombId = path.scope.generateUidIdentifier('t')
           assertId = path.scope.generateUidIdentifier('assert')
           extendId = path.scope.generateUidIdentifier('extend')
+          recursiveTypes = []
         },
 
         exit(path, state) {
@@ -684,6 +669,8 @@ export default function ({ types: t, template }) {
               t.importDeclaration([t.importDefaultSpecifier(tcombId)], t.stringLiteral('tcomb'))
             )
           }
+
+          Array.prototype.push.apply(path.node.body, recursiveTypes)
 
           if (isAssertTemplateRequired) {
             path.node.body.push(assertTemplate({
@@ -729,7 +716,7 @@ export default function ({ types: t, template }) {
       TypeAlias(path) {
         preventReservedNamesUsage(path)
         hasTypes = true
-        replaceTypeDefintion(path, getTypeAliasDefinition(path))
+        path.replaceWith(getTypeAliasDefinition(path))
       },
 
       InterfaceDeclaration(path) {
@@ -739,10 +726,10 @@ export default function ({ types: t, template }) {
         const typeParameters = getTypeParameters(node)
         if (path.node.extends.length > 0) {
           hasExtend = true
-          replaceTypeDefintion(path, getExtendedInterfaceDefinition(node, typeParameters))
+          path.replaceWith(getExtendedInterfaceDefinition(node, typeParameters))
         }
         else {
-          replaceTypeDefintion(path, getInterfaceDefinition(node, typeParameters))
+          path.replaceWith(getInterfaceDefinition(node, typeParameters))
         }
       },
 

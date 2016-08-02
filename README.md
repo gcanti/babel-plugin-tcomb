@@ -1,4 +1,4 @@
-}Babel plugin for static and runtime type checking using Flow and tcomb.
+Babel plugin for static and runtime type checking using Flow and tcomb.
 
 **Tools**
 
@@ -65,6 +65,47 @@ Then, in your babel configuration (usually in your `.babelrc` file), add (at lea
 ```
 
 **Important**. `tcomb` must be `require`able
+
+# Plugin configuration
+
+## `skipAsserts?: boolean = false`
+
+Removes the asserts and keeps the domain models
+
+## `globals?: Array<Object>`
+
+With this option you can handle global types, like `Class` or react `SyntheticEvent`
+
+Example
+
+```js
+"plugins" : [
+  ["tcomb", {
+    globals: [
+      // flow
+      {
+        'Class': true
+      }
+      // react
+      {
+        'SyntheticEvent': true,
+        ...
+      },
+      // your custom global types (if any)
+      ...
+    ]
+  }],
+]
+```
+
+# Definition files
+
+Definition files for `tcomb` and `tcomb-react` are temporarily published [here](https://github.com/gcanti/pantarei).
+
+# Caveats
+
+- `tcomb` must be `require`able
+- type parameters (aka generics) are not handled (`Flow`'s responsability)
 
 # How it works
 
@@ -230,9 +271,9 @@ store.dispatch({ type: 'INCREMEN', delta: 1 }) // <= typo
 // Flow throws as well
 ```
 
-# Type-checking React
+# Type-checking React using tcomb-react
 
-Using [tcomb-react](https://github.com/gcanti/tcomb-react):
+See [tcomb-react](https://github.com/gcanti/tcomb-react):
 
 ```js
 // @flow
@@ -316,19 +357,6 @@ Hello.propTypes = propTypes((({}: any): $Reify<Props>))
 
 ReactDOM.render(<Hello />, document.getElementById('app'))
 ```
-
-# Definition files
-
-Definition files for `tcomb` and `tcomb-react` are temporarily published [here](https://github.com/gcanti/pantarei).
-
-# Caveats
-
-- `tcomb` must be `require`able
-- type parameters (aka generics) are not handled (`Flow`'s responsability)
-
-# Plugin config
-
-- `skipAsserts: boolean = false` removes the asserts and keeps the domain models
 
 # Under the hood
 

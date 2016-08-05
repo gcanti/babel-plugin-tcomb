@@ -6,3 +6,7 @@ export function getUser(userId: string): Promise<User> {
 
 const a = ('a string': A)
 const b = ({}: B)
+
+function coerce<A, B>(a: A): B {
+  return ((a: any): B)
+}

@@ -16,6 +16,8 @@
 
 - **New Feature**
   - add `globals` option, fix #56 (@gcanti)
+- **Bug Fix**
+  - handle type parameters in casts (@gcanti)
 
 # v0.3.8
 

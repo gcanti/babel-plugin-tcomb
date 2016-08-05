@@ -779,10 +779,11 @@ export default function ({ types: t, template }) {
             return
           }
           hasAsserts = true
+          const typeParameters = assign(getTypeParameters(node), node[TYPE_PARAMETERS_STORE_FIELD])
           path.replaceWith(getAssert({
             id: node.expression,
             annotation: node.typeAnnotation.typeAnnotation
-          }), getTypeParameters(node))
+          }, typeParameters))
         }
       },
 
@@ -836,7 +837,7 @@ export default function ({ types: t, template }) {
 
         // store type parameters so we can read them later
         path.traverse({
-          'Function|VariableDeclaration'({ node }) {
+          'Function|VariableDeclaration|TypeCastExpression'({ node }) {
             node[TYPE_PARAMETERS_STORE_FIELD] = assign(typeParameters, node[TYPE_PARAMETERS_STORE_FIELD])
           }
         })

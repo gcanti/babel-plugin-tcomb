@@ -1,3 +1,5 @@
+type Node = {};
+
 // recursive
 type Path1 = {
   node: Node,

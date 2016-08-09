@@ -270,12 +270,11 @@ export default function ({ types: t, template }) {
   function getObjectExpression(properties, typeParameters) {
     const props = properties
       .map(prop => {
-        const name = t.identifier(prop.key.name)
         let type = getType(prop.value, typeParameters)
         if (prop.optional) {
           type = getMaybeCombinator(type)
         }
-        return t.objectProperty(name, type)
+        return t.objectProperty(prop.key, type)
       })
     return t.objectExpression(props)
   }

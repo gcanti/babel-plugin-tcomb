@@ -14,3 +14,4 @@ type T11 = 'a' | number;
 type T12 = 1 | 2;
 type T13 = number & $Refinement<typeof isPositive>;
 type T14 = number & $Refinement<typeof Integer.is>;
+type T15 = { 'cc:id': number };

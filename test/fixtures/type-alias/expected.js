@@ -33,3 +33,7 @@ const T12 = _t.union([_t.refinement(_t.Number, function (n) {
 const T13 = _t.refinement(_t.Number, isPositive, 'T13');
 
 const T14 = _t.refinement(_t.Number, Integer.is, 'T14');
+
+const T15 = _t.interface({
+  'cc:id': _t.Number
+}, 'T15');

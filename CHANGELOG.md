@@ -12,6 +12,11 @@
 **Note**: Gaps between patch versions are faulty/broken releases.
 **Note**: A feature tagged as Experimental is in a high state of flux, you're at risk of it changing without notice.
 
+# v0.3.10
+
+- **Bug Fix**
+  - Support complicated object property name, fix #89 (@gcanti)
+
 # v0.3.9
 
 - **New Feature**

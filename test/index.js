@@ -208,7 +208,7 @@ describe('emit asserts for: ', () => {
     if ((caseName in skipTests)) {
       return
     }
-    if (!(caseName in { 'cast': 1 })) {
+    if (!(caseName in { 'async': 1 })) {
       // return
     }
     it(`should ${caseName.split('-').join(' ')}`, () => {
@@ -217,6 +217,7 @@ describe('emit asserts for: ', () => {
         path.join(fixtureDir, 'actual.js'), {
           babelrc: false,
           plugins: [
+            'syntax-async-functions',
             'syntax-flow',
             [plugin, {
               skipHelpers: true

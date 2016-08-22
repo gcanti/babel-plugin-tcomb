@@ -1,6 +1,6 @@
 {
   "name": "babel-plugin-tcomb",
-  "version": "0.3.10",
+  "version": "0.3.11",
   "description": "Babel plugin for static and runtime type checking using Flow and tcomb",
   "main": "lib/index.js",
   "files": [
@@ -29,6 +29,7 @@
     "babel-cli": "6.9.0",
     "babel-core": "6.9.1",
     "babel-eslint": "6.0.4",
+    "babel-plugin-syntax-async-functions": "^6.13.0",
     "babel-plugin-syntax-flow": "6.8.0",
     "babel-plugin-transform-flow-strip-types": "6.8.0",
     "babel-preset-es2015": "6.9.0",

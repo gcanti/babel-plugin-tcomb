@@ -14,6 +14,7 @@ const PLUGIN_NAME = 'babel-plugin-tcomb'
 const TYPE_PARAMETERS_STORE_FIELD = '__babel_plugin_tcomb_typeParametersStoreField'
 const IS_RECURSIVE_STORE_FIELD = '__babel_plugin_tcomb_isRecursiveStoreField'
 const REFINEMENT_PREDICATE_ID_STORE_FIELD = '__babel_plugin_tcomb_refinementPredicateIdStoreField'
+const PROCESSED_FUNCTION_STORE_FIELD = '__babel_plugin_tcomb_ProcessedFunctionField'
 
 const flowMagicTypes = {
   '$Shape': true,
@@ -481,12 +482,14 @@ export default function ({ types: t, template }) {
       name: t.stringLiteral('return value')
     }, typeParameters)
 
+    const f = t.functionExpression(null, params, node.body)
+    f[PROCESSED_FUNCTION_STORE_FIELD] = true
     return [
       t.variableDeclaration('const', [
         t.variableDeclarator(
           id,
           t.callExpression(
-            t.memberExpression(t.functionExpression(null, params, node.body), t.identifier('call')),
+            t.memberExpression(f, t.identifier('call')),
             [t.identifier('this')].concat(callParams)
           )
         )
@@ -827,17 +830,22 @@ export default function ({ types: t, template }) {
       },
 
       Function(path, state) {
-        if (state.opts[SKIP_ASSERTS_OPTION]) {
+        const node = path.node
+        if (state.opts[SKIP_ASSERTS_OPTION] || node[PROCESSED_FUNCTION_STORE_FIELD]) {
           return
         }
+        node[PROCESSED_FUNCTION_STORE_FIELD] = true
 
-        const node = path.node
+        let isAsync = false
         const typeParameters = assign(getTypeParameters(node), node[TYPE_PARAMETERS_STORE_FIELD])
 
         // store type parameters so we can read them later
         path.traverse({
           'Function|VariableDeclaration|TypeCastExpression'({ node }) {
             node[TYPE_PARAMETERS_STORE_FIELD] = assign(typeParameters, node[TYPE_PARAMETERS_STORE_FIELD])
+          },
+          AwaitExpression() {
+            isAsync = true
           }
         })
 
@@ -851,7 +859,7 @@ export default function ({ types: t, template }) {
 
           // If we have a return type then we will wrap our entire function
           // body and insert a type check on the returned value.
-          if (node.returnType) {
+          if (node.returnType && !isAsync) {
             hasAsserts = true
             path.get('body').replaceWithMultiple(getWrappedFunctionReturnWithTypeCheck(node, typeParameters))
           }

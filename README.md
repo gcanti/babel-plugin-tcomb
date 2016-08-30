@@ -47,8 +47,6 @@ Then, in your babel configuration (usually in your `.babelrc` file), add (at lea
 
 ```js
 {
-  "presets": ["es2015"],
-  "passPerPreset": true,
   "plugins" : [
     "syntax-flow",
     "tcomb",
@@ -57,12 +55,11 @@ Then, in your babel configuration (usually in your `.babelrc` file), add (at lea
 }
 ```
 
-**Warning**. If you use multiple presets, you need to specify them in just right order. Example:
+**Note**. ``syntax-flow`` and ``transform-flow-strip-types`` are already included with the [React Preset](https://babeljs.io/docs/plugins/preset-react/).
 
-```js
-"presets": ["es2015", "react", "stage-0"] // bad
-"presets": ["stage-0", "react", "es2015"] // good
-```
+**Note**. Use [Babel's env option](https://babeljs.io/docs/usage/babelrc/) to only use this plugin in development.
+
+**Warning**. If you use multiple presets and are experiencing issues, try tweaking the preset order and setting ``passPerPreset: true``.  Related issues: [#78](https://github.com/gcanti/babel-plugin-tcomb/issues/78) [#99](https://github.com/gcanti/babel-plugin-tcomb/issues/99)
 
 **Important**. `tcomb` must be `require`able
 

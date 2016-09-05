@@ -12,6 +12,11 @@
 **Note**: Gaps between patch versions are faulty/broken releases.
 **Note**: A feature tagged as Experimental is in a high state of flux, you're at risk of it changing without notice.
 
+# v0.3.12
+
+- **Bug Fix**
+  - handle 'keyword'-style function arguments, fix #103 (@gcanti)
+
 # v0.3.11
 
 - **Experimental**

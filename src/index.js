@@ -405,7 +405,7 @@ export default function ({ types: t, template }) {
     }
   }
 
-  function getAssertArgumentName(id) {
+  function nodeToString(id) {
     return generate(id, { concise: true }).code
   }
 
@@ -414,7 +414,7 @@ export default function ({ types: t, template }) {
     if (optional) {
       type = getMaybeCombinator(type)
     }
-    name = name || t.stringLiteral(getAssertArgumentName(id))
+    name = name || t.stringLiteral(nodeToString(id))
     return t.callExpression(
       assertId,
       [id, type, name]
@@ -423,6 +423,18 @@ export default function ({ types: t, template }) {
 
   function getAssert({ id, optional, annotation, name }, typeParameters) {
     return t.expressionStatement(getAssertCallExpression(id, annotation, typeParameters, name, optional))
+  }
+
+  function stripDefaults(node) {
+    if (t.isObjectPattern(node)) {
+      return t.objectExpression(node.properties.map(p => {
+        return t.objectProperty(p.key, stripDefaults(p.value), false, true)
+      }))
+    }
+    else if (t.isAssignmentPattern(node)) {
+      return stripDefaults(node.left)
+    }
+    return node
   }
 
   function getParam(param, i) {
@@ -438,7 +450,7 @@ export default function ({ types: t, template }) {
         }
       }
       return {
-        id: t.identifier(t.isObjectPattern(param) ? 'arguments[' + i + ']' : param.name),
+        id: stripDefaults(param),
         optional: param.optional,
         annotation: param.typeAnnotation.typeAnnotation
       }
@@ -824,7 +836,7 @@ export default function ({ types: t, template }) {
             declarator.init,
             id.typeAnnotation.typeAnnotation,
             node[TYPE_PARAMETERS_STORE_FIELD],
-            t.stringLiteral(getAssertArgumentName(id))
+            t.stringLiteral(nodeToString(id))
           )
         }
       },

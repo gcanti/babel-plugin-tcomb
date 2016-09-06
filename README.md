@@ -39,7 +39,7 @@ Boilerplate showing what you can get in terms of type safety with babel-plugin-t
 First, install via npm.
 
 ```sh
-npm install --save tcomb
+npm install --save-dev tcomb
 npm install --save-dev babel-plugin-tcomb
 ```
 

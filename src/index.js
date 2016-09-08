@@ -405,11 +405,40 @@ export default function ({ types: t, template }) {
     }
   }
 
+  function isSameType(node, annotation) {
+    switch (annotation.type) {
+      case 'BooleanTypeAnnotation':
+        return node.type === 'BooleanLiteral'
+
+      case 'NumberTypeAnnotation':
+        return node.type === 'NumericLiteral'
+
+      case 'StringTypeAnnotation':
+        return node.type === 'StringLiteral'
+
+      case 'NullLiteralTypeAnnotation':
+        return node.type === 'NullLiteral'
+
+      case 'VoidTypeAnnotation':
+        return node.type === 'Identifier' && node.name === 'undefined'
+
+      case 'NullableTypeAnnotation':
+        return isSameType(node, annotation.typeAnnotation)
+    }
+
+    return false
+  }
+
   function nodeToString(id) {
     return generate(id, { concise: true }).code
   }
 
   function getAssertCallExpression(id, annotation, typeParameters, name, optional) {
+    if (isSameType(id, annotation)) {
+      // no need to check
+      return id
+    }
+
     let type = getType(annotation, typeParameters)
     if (optional) {
       type = getMaybeCombinator(type)

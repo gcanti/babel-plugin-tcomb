@@ -57,6 +57,7 @@
     "runtime"
   ],
   "dependencies": {
-    "babel-generator": "^6.11.3"
+    "babel-generator": "^6.11.3",
+    "lodash.find": "^4.6.0"
   }
 }

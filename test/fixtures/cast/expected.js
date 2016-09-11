@@ -13,7 +13,7 @@ export function getUser(userId) {
     });
   }.call(this, userId);
 
-  _assert(ret, Promise, 'return value');
+  _assert(ret, _t.Promise, 'return value');
 
   return ret;
 }

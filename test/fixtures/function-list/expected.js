@@ -11,7 +11,7 @@ function bar(x) {
 }
 
 function baz(x) {
-  _assert(x, _t.list(Promise), "x");
+  _assert(x, _t.list(_t.Promise), "x");
 
   return x;
 }

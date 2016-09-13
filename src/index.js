@@ -819,7 +819,7 @@ export default function ({ types: t, template }) {
 
         const node = path.node
 
-        if (node.kind !== 'const') {
+        if (node.kind === 'var') {
           return
         }
 

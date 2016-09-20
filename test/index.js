@@ -39,7 +39,11 @@ function _assert2(x, type, name) {
 
       _t.fail(message());
     }
-  } else if (!(x instanceof type)) {
+
+    return type(x);
+  }
+
+  if (!(x instanceof type)) {
     _t.fail(message());
   }
 

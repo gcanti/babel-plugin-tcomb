@@ -1,5 +1,5 @@
 function foo(p) {
-  _assert(p, Promise, "p");
+  _assert(p, _t.Promise, "p");
 
   const ret = function (p) {}.call(this, p);
 

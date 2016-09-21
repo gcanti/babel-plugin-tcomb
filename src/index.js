@@ -127,6 +127,7 @@ export default function ({ types: t, template }) {
   const stringId = t.identifier('String')
   const booleanId = t.identifier('Boolean')
   const anyId = t.identifier('Any')
+  const promiseId = t.identifier('Promise')
 
   function getListCombinator(type, name) {
     return callCombinator(listId, [type], name)
@@ -223,6 +224,10 @@ export default function ({ types: t, template }) {
 
   function getAnyType() {
     return getTcombType(anyId)
+  }
+
+  function getPromiseType() {
+    return getTcombType(promiseId)
   }
 
   function getNumericLiteralType(value) {
@@ -323,6 +328,9 @@ export default function ({ types: t, template }) {
     }
     if (name === 'Object') {
       return getObjectType()
+    }
+    if (name === 'Promise') {
+      return getPromiseType()
     }
     if (shouldReturnAnyType(name, typeParameters)) {
       return getAnyType()

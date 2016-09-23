@@ -296,17 +296,17 @@ export default function ({ types: t, template }) {
     return getExpressionFromGenericTypeAnnotation(annotation.typeParameters.params[0].argument.id)
   }
 
-  function isTypeParameter(name, typeParameters) {
-    return typeParameters && typeParameters.hasOwnProperty(name)
+  function getTypeParameter(name, typeParameters) {
+    return typeParameters && typeParameters.hasOwnProperty(name) ? typeParameters[name] : false
   }
 
   function isGlobalType(name) {
     return globals && globals.hasOwnProperty(name)
   }
 
-  function shouldReturnAnyType(name, typeParameters) {
+  function shouldReturnAnyType(name) {
      // this plugin doesn't handle generics by design
-    return isGlobalType(name) || isTypeParameter(name, typeParameters) || flowMagicTypes.hasOwnProperty(name)
+    return isGlobalType(name) || flowMagicTypes.hasOwnProperty(name)
   }
 
   function getGenericTypeAnnotation(annotation, typeParameters, typeName) {
@@ -324,7 +324,18 @@ export default function ({ types: t, template }) {
     if (name === 'Object') {
       return getObjectType()
     }
-    if (shouldReturnAnyType(name, typeParameters)) {
+
+    const typeParameter = getTypeParameter(name, typeParameters)
+    if (typeParameter) {
+      // only bounded polymorphism is supported at the moment
+      if (typeParameter.bound) {
+        return getType(typeParameter.bound.typeAnnotation, typeParameters)
+      }
+
+      return getAnyType()
+    }
+
+    if (shouldReturnAnyType(name)) {
       return getAnyType()
     }
     const gta = getExpressionFromGenericTypeAnnotation(annotation.id)
@@ -523,7 +534,7 @@ export default function ({ types: t, template }) {
   function getTypeParameters(node) {
     const typeParameters = {}
     if (node.typeParameters) {
-      node.typeParameters.params.forEach(param => typeParameters[getTypeParameterName(param)] = true)
+      node.typeParameters.params.forEach(param => typeParameters[getTypeParameterName(param)] = param)
     }
     return typeParameters
   }

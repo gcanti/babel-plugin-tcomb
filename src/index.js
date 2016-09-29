@@ -378,7 +378,7 @@ export default function ({ types: t, template }) {
             typeName
           )
         }
-        return getInterfaceCombinator(getObjectExpression(annotation.properties, typeParameters), typeName)
+        return getInterfaceCombinator(getObjectExpression(annotation.properties, typeParameters), typeName, annotation.exact)
 
       case 'IntersectionTypeAnnotation' :
         return getIntersectionCombinator(annotation.types.map(annotation => getType(annotation, typeParameters)), typeName)

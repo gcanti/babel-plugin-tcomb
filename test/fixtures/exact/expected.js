@@ -6,3 +6,10 @@ const A = _t.interface({
   name: "A",
   strict: true
 });
+
+const B = _t.interface({
+  x: _t.String
+}, {
+  name: "B",
+  strict: true
+});

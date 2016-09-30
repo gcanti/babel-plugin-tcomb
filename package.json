@@ -26,8 +26,8 @@
     "tcomb": "^3.2.2"
   },
   "devDependencies": {
-    "babel-cli": "6.9.0",
-    "babel-core": "6.9.1",
+    "babel-cli": "6.16.0",
+    "babel-core": "6.16.0",
     "babel-eslint": "6.0.4",
     "babel-plugin-syntax-async-functions": "^6.13.0",
     "babel-plugin-syntax-flow": "6.8.0",

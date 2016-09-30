@@ -12,6 +12,11 @@
 **Note**: Gaps between patch versions are faulty/broken releases.
 **Note**: A feature tagged as Experimental is in a high state of flux, you're at risk of it changing without notice.
 
+# v0.3.16
+
+- **Bug Fix**
+  - annotated functions now handle exact types, fix #127 (@gcanti)
+
 # v0.3.15
 
 - **New Feature**

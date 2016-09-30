@@ -109,6 +109,11 @@ export default function ({ types: t, template }) {
         combinatorArguments.push(typeName)
       }
     }
+    else if (exact) {
+      combinatorArguments.push(t.objectExpression([
+        t.objectProperty(t.identifier('strict'), t.booleanLiteral(true))
+      ]))
+    }
     return combinatorArguments
   }
 

@@ -23,3 +23,15 @@ function bar(x, y) {
 
   return ret;
 }
+
+function f({ x = "ex" }) {
+  const ret = function ({ x = "ex" }) {
+    console.log({ x });
+  }.call(this, {
+    x
+  });
+
+  _assert(ret, _t.Nil, "return value");
+
+  return ret;
+}

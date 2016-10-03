@@ -12,6 +12,11 @@
 **Note**: Gaps between patch versions are faulty/broken releases.
 **Note**: A feature tagged as Experimental is in a high state of flux, you're at risk of it changing without notice.
 
+# v0.3.17
+
+- **Bug Fix**
+  - handle destructured "keyword" params with default values and return type, fix #129 (@gcanti)
+
 # v0.3.16
 
 - **Bug Fix**

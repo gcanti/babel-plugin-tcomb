@@ -496,11 +496,15 @@ export default function ({ types: t, template }) {
     return t.identifier(param.name)
   }
 
+  function stripValueFromProperty(property) {
+    return t.objectProperty(property.key, property.key, false, true)
+  }
+
   function getWrappedFunctionReturnWithTypeCheck(node, typeParameters) {
     const params = node.params.map(getParamName)
     const callParams = params.map(param => {
       if (t.isObjectPattern(param)) {
-        return t.objectExpression(param.properties)
+        return t.objectExpression(param.properties.map(stripValueFromProperty))
       }
       else if (t.isRestElement(param)) {
         return t.spreadElement(param.argument)

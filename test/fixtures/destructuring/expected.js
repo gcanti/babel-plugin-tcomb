@@ -11,7 +11,9 @@ function foo({ x }) {
 function bar({ a } = {}) {
   const ret = function ({ a }) {
     return x;
-  }.call(this, { a });
+  }.call(this, {
+    a
+  });
 
   _assert(ret, _t.String, "return value");
 

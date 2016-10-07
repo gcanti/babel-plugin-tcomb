@@ -679,12 +679,13 @@ export default function ({ types: t, template }) {
       )
     ])
     return [importNode].concat(node.specifiers.map(specifier => {
+      const isDefaultImport = specifier.type === 'ImportDefaultSpecifier'
       return t.variableDeclaration('const', [
         t.variableDeclarator(
           specifier.local,
           t.logicalExpression(
             '||',
-            t.memberExpression(typesId, specifier.imported),
+            t.memberExpression(typesId, isDefaultImport ? t.identifier('default') : specifier.imported),
             getAnyType()
           )
         )

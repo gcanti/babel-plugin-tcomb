@@ -1,0 +1,1 @@
+import Model from "./model";

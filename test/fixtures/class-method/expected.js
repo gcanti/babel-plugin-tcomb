@@ -12,3 +12,17 @@ class A {
     return ret;
   }
 }
+
+class B {
+  bar() {
+    [].forEach(n => {
+      const ret = function (n) {
+        console.log(this);
+      }.call(this, n);
+
+      _assert(ret, _t.Nil, 'return value');
+
+      return ret;
+    });
+  }
+}

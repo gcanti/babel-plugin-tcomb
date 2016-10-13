@@ -527,7 +527,7 @@ export default function ({ types: t, template }) {
           id,
           t.callExpression(
             t.memberExpression(f, t.identifier('call')),
-            [t.identifier('this')].concat(callParams)
+            [t.thisExpression()].concat(callParams)
           )
         )
       ]),

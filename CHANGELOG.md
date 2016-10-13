@@ -12,6 +12,11 @@
 **Note**: Gaps between patch versions are faulty/broken releases.
 **Note**: A feature tagged as Experimental is in a high state of flux, you're at risk of it changing without notice.
 
+# v0.3.19
+
+- **Bug Fix**
+  - return types on fat-arrow functions lose access to `this`, fix #134 (@gcanti)
+
 # v0.3.18
 
 - **Bug Fix**

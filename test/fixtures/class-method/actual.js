@@ -4,3 +4,11 @@ class A {
     return x;
   }
 }
+
+class B {
+  bar() {
+    [].forEach((n): void => {
+      console.log(this);
+    });
+  }
+}

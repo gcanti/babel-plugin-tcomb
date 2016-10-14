@@ -492,7 +492,10 @@ export default function ({ types: t, template }) {
       return t.restElement(param.argument)
     }
     else if (t.isObjectPattern(param)) {
-      return param
+      return t.objectPattern(param.properties.map(p => {
+        return t.objectProperty(p.key, stripDefaults(p.value), false, true)
+      }))
+      // return param
     }
     return t.identifier(param.name)
   }

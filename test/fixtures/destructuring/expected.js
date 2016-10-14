@@ -9,7 +9,9 @@ function foo({ x }) {
 }
 
 function bar({ a } = {}) {
-  const ret = function ({ a }) {
+  const ret = function ({
+    a
+  }) {
     return x;
   }.call(this, {
     a

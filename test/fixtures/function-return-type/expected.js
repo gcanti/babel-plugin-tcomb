@@ -25,7 +25,9 @@ function bar(x, y) {
 }
 
 function f({ x = "ex" }) {
-  const ret = function ({ x = "ex" }) {
+  const ret = function ({
+    x
+  }) {
     console.log({ x });
   }.call(this, {
     x

@@ -12,6 +12,13 @@
 **Note**: Gaps between patch versions are faulty/broken releases.
 **Note**: A feature tagged as Experimental is in a high state of flux, you're at risk of it changing without notice.
 
+# v0.3.20
+
+- **Internal**
+  - remove `require`s from import type declarations, fix #139 (@gcanti)
+- **Bug Fix**
+  - "keyword"-style args with function defaults that declare return types cause runtime errors, fix #136 (@gcanti)
+
 # v0.3.19
 
 - **Bug Fix**

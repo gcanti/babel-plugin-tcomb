@@ -1,5 +1,3 @@
 import _t from "tcomb";
-
-const _react = require("react");
-
+import * as _react from "react";
 const React = _react.default || _t.Any;

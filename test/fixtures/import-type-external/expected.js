@@ -1,5 +1,3 @@
 import _t from "tcomb";
-
-const _types = require("types");
-
+import * as _types from "types";
 const A = _types.A || _t.Any;

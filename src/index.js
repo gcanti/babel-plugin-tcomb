@@ -492,7 +492,10 @@ export default function ({ types: t, template }) {
       return t.restElement(param.argument)
     }
     else if (t.isObjectPattern(param)) {
-      return param
+      return t.objectPattern(param.properties.map(p => {
+        return t.objectProperty(p.key, stripDefaults(p.value), false, true)
+      }))
+      // return param
     }
     return t.identifier(param.name)
   }
@@ -673,12 +676,9 @@ export default function ({ types: t, template }) {
     const node = path.node
     const source = node.source.value
     const typesId = path.scope.generateUidIdentifier(source)
-    const importNode = t.variableDeclaration('const', [
-      t.variableDeclarator(
-        typesId,
-        t.callExpression(t.identifier('require'), [t.stringLiteral(source)])
-      )
-    ])
+    const importNode = t.importDeclaration([
+      t.importNamespaceSpecifier(typesId)
+    ], t.stringLiteral(source))
     return [importNode].concat(node.specifiers.map(specifier => {
       const isDefaultImport = specifier.type === 'ImportDefaultSpecifier'
       return t.variableDeclaration('const', [

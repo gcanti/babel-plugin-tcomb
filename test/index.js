@@ -212,7 +212,7 @@ describe('emit asserts for: ', () => {
     if ((caseName in skipTests)) {
       return
     }
-    if (!(caseName in { 'exact': 1 })) {
+    if (!(caseName in { 'without-import': 1 })) {
       // return
     }
     it(`should ${caseName.split('-').join(' ')}`, () => {

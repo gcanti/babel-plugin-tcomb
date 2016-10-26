@@ -1,7 +1,5 @@
 function foo({ x }) {
-  _assert({
-    x
-  }, _t.interface({
+  _assert(arguments[0], _t.interface({
     x: _t.String
   }), "{ x }");
 
@@ -23,15 +21,11 @@ function bar({ a } = {}) {
 }
 
 function baz({ x: { y = "ex" } } = {}) {
-  _assert({
-    x: {
-      y
-    }
-  }, _t.interface({
+  _assert(arguments[0], _t.interface({
     x: _t.interface({
       y: _t.maybe(_t.String)
     })
-  }), "{ x: { y } }");
+  }), "{ x: { y = \"ex\" } }");
 
   return x;
 }

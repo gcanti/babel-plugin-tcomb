@@ -450,6 +450,9 @@ export default function ({ types: t, template }) {
   function stripDefaults(node) {
     if (t.isObjectPattern(node)) {
       return t.objectExpression(node.properties.map(p => {
+        if (t.isRestProperty(p)) {
+          return t.spreadProperty(stripDefaults(p.argument))
+        }
         return t.objectProperty(p.key, stripDefaults(p.value), false, true)
       }))
     }
@@ -459,15 +462,17 @@ export default function ({ types: t, template }) {
     return node
   }
 
-  function getParam(param, i) {
+  function getParam(isArrow, param, i) {
     if (t.isAssignmentPattern(param) && param.left.typeAnnotation) {
-      return getParam(param.left, i)
+      return getParam(isArrow, param.left, i)
     }
     if (param.typeAnnotation) {
       const id = t.isObjectPattern(param) ?
-        t.memberExpression(t.identifier('arguments'), t.identifier(i), true) : t.isRestElement(param) ?
-        param.argument :
-        param
+          isArrow ?
+            stripDefaults(param) :
+            t.memberExpression(t.identifier('arguments'), t.identifier(i), true) :
+        t.isRestElement(param) ?
+          param.argument : param
 
       return {
         id,
@@ -479,7 +484,8 @@ export default function ({ types: t, template }) {
   }
 
   function getFunctionArgumentCheckExpressions(node, typeParameters) {
-    const params = node.params.map(getParam).filter(x => x)
+    const isArrow = t.isArrowFunctionExpression(node)
+    const params = node.params.map((param, i) => getParam(isArrow, param, i)).filter(x => x)
     return params.map(param => getAssert(param, typeParameters))
   }
 

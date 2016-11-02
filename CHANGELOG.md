@@ -12,6 +12,14 @@
 **Note**: Gaps between patch versions are faulty/broken releases.
 **Note**: A feature tagged as Experimental is in a high state of flux, you're at risk of it changing without notice.
 
+# v0.3.22
+
+- **Bug Fix**
+  - arguments object and arrow functions don't play well together, fix #144 (@gcanti)
+
+- **Bug Fix**
+  - Assertions on object destructuring, fix #141 (@gcanti)
+
 # v0.3.21
 
 - **Bug Fix**

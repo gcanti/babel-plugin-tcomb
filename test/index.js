@@ -212,7 +212,7 @@ describe('emit asserts for: ', () => {
     if ((caseName in skipTests)) {
       return
     }
-    if (!(caseName in { 'without-import': 1 })) {
+    if (!(caseName in { 'destructuring-with-arrows': 1 })) {
       // return
     }
     it(`should ${caseName.split('-').join(' ')}`, () => {
@@ -226,7 +226,8 @@ describe('emit asserts for: ', () => {
             [plugin, {
               skipHelpers: true
             }],
-            'transform-flow-strip-types'
+            'transform-flow-strip-types',
+            'transform-object-rest-spread'
           ]
         }
       ).code

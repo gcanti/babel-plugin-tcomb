@@ -28,11 +28,14 @@ You can add type safety to your untyped codebase gradually:
 - then, when you feel comfortable, turn on `Flow` and unleash the power of static type checking
 - third, for even more type safety, define your refinement types and validate the IO boundary
 
-# Boilerplate
+# Fork
 
-Boilerplate showing what you can get in terms of type safety with babel-plugin-tcomb:
+[Here](https://github.com/christophehurpeau/babel-plugin-tcomb) you can find a fork of this plugin that provides the following additional features:
 
-[babel-plugin-tcomb-boilerplate](https://github.com/gcanti/babel-plugin-tcomb-boilerplate)
+- Avoid checks on confident assignment
+- Bounded polymorphism partial support
+- `let` checks
+- Assignment type checking
 
 # Setup
 

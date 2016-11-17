@@ -21,7 +21,7 @@ function bar({ a } = {}) {
 }
 
 function baz({ x: { y = "ex" } } = {}) {
-  _assert(arguments[0], _t.interface({
+  _assert(arguments[0] !== undefined ? arguments[0] : {}, _t.interface({
     x: _t.interface({
       y: _t.maybe(_t.String)
     })

@@ -94,6 +94,8 @@ export default function ({ types: t, template }) {
     }
   `)
 
+  const argumentsTemplate = expression(`arguments[index] !== undefined ? arguments[index] : defaults`)
+
   //
   // combinators
   //
@@ -462,17 +464,28 @@ export default function ({ types: t, template }) {
     return node
   }
 
-  function getParam(isArrow, param, i) {
+  function getParamId(isArrow, param, i, defaults) {
+    if (t.isObjectPattern(param)) {
+      if (isArrow) {
+        return stripDefaults(param)
+      }
+      if (typeof defaults !== 'undefined') {
+        return argumentsTemplate({ index: t.identifier(i), defaults })
+      }
+      return t.memberExpression(t.identifier('arguments'), t.identifier(i), true)
+    }
+    if (t.isRestElement(param)) {
+      return param.argument
+    }
+    return param
+  }
+
+  function getParam(isArrow, param, i, defaults) {
     if (t.isAssignmentPattern(param) && param.left.typeAnnotation) {
-      return getParam(isArrow, param.left, i)
+      return getParam(isArrow, param.left, i, param.right)
     }
     if (param.typeAnnotation) {
-      const id = t.isObjectPattern(param) ?
-          isArrow ?
-            stripDefaults(param) :
-            t.memberExpression(t.identifier('arguments'), t.identifier(i), true) :
-        t.isRestElement(param) ?
-          param.argument : param
+      const id = getParamId(isArrow, param, i, defaults)
 
       return {
         id,

@@ -212,7 +212,7 @@ describe('emit asserts for: ', () => {
     if ((caseName in skipTests)) {
       return
     }
-    if (!(caseName in { 'destructuring-with-arrows': 1 })) {
+    if (!(caseName in { 'destructuring': 1 })) {
       // return
     }
     it(`should ${caseName.split('-').join(' ')}`, () => {

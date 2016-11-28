@@ -39,6 +39,7 @@ const RESERVED_NAMES = {
 const SKIP_HELPERS_OPTION = 'skipHelpers'
 // useful for keeping the models
 const SKIP_ASSERTS_OPTION = 'skipAsserts'
+const WARN_ON_FAILURE_OPTION = 'warnOnFailure'
 
 function assign(x, y) {
   if (y) {
@@ -62,18 +63,15 @@ export default function ({ types: t, template }) {
 
   const assertTemplate = expression(`
     function assertId(x, type, name) {
-      function message() {
-        return 'Invalid value ' + tcombId.stringify(x) + ' supplied to ' + name + ' (expected a ' + tcombId.getTypeName(type) + ')';
+      if (warnOnFailure) {
+        tcombId.fail = function (message) { console.warn(message); };
       }
-      if (tcombId.isType(type)) {
+      if (tcombId.isType(type) && type.meta.kind !== 'struct') {
         if (!type.is(x)) {
           type(x, [name + ': ' + tcombId.getTypeName(type)]);
-          tcombId.fail(message());
         }
-        return type(x)
-      }
-      if (!(x instanceof type)) {
-        tcombId.fail(message());
+      } else if (!(x instanceof type)) {
+        tcombId.fail('Invalid value ' + tcombId.stringify(x) + ' supplied to ' + name + ' (expected a ' + tcombId.getTypeName(type) + ')');
       }
       return x;
     }
@@ -763,6 +761,7 @@ export default function ({ types: t, template }) {
 
           if (isAssertTemplateRequired) {
             path.node.body.push(assertTemplate({
+              warnOnFailure: t.booleanLiteral(!!state.opts[WARN_ON_FAILURE_OPTION]),
               assertId,
               tcombId
             }))

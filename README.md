@@ -72,6 +72,10 @@ Then, in your babel configuration (usually in your `.babelrc` file), add (at lea
 
 Removes the asserts and keeps the domain models
 
+## `warnOnFailure?: boolean = false`
+
+Warns (`console.warn`) about type mismatch instead of throwing an error
+
 ## `globals?: Array<Object>`
 
 With this option you can handle global types, like `Class` or react `SyntheticEvent`

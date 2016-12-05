@@ -202,7 +202,7 @@ foo(2.1) // flow ok, tcomb throws [tcomb] Invalid value 2.1 supplied to n: Integ
 foo('a') // flow throws, tcomb throws
 ```
 
-In order to enable this feature add the [`tcomb` definition file](https://github.com/gcanti/pantarei/blob/master/tcomb/3.2.2%2B.js) to the `[libs]` section of your `.flowconfig`.
+In order to enable this feature add the [`tcomb` definition file](https://github.com/gcanti/pantarei/blob/master/tcomb/3.x.x-0.33.x/tcomb.js) to the `[libs]` section of your `.flowconfig`.
 
 ## Runtime type introspection
 

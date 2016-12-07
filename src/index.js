@@ -9,9 +9,11 @@
  */
 
 import generate from 'babel-generator'
+import find from 'lodash.find'
 
 const PLUGIN_NAME = 'babel-plugin-tcomb'
 const TYPE_PARAMETERS_STORE_FIELD = '__babel_plugin_tcomb_typeParametersStoreField'
+const TYPE_VARIABLE_STORE_FIELD = '__babel_plugin_tcomb_typeVariableStoreField'
 const IS_RECURSIVE_STORE_FIELD = '__babel_plugin_tcomb_isRecursiveStoreField'
 const REFINEMENT_PREDICATE_ID_STORE_FIELD = '__babel_plugin_tcomb_refinementPredicateIdStoreField'
 const PROCESSED_FUNCTION_STORE_FIELD = '__babel_plugin_tcomb_ProcessedFunctionField'
@@ -724,6 +726,62 @@ export default function ({ types: t, template }) {
     return node.declaration && ( t.isTypeAlias(node.declaration) || t.isInterfaceDeclaration(node.declaration) )
   }
 
+  function findTypeAnnotationInObjectPattern(name, objectPattern, objectTypeAnnotation) {
+    if (!objectTypeAnnotation || !t.isObjectTypeAnnotation(objectTypeAnnotation)) {
+      return
+    }
+
+    for (let property of objectPattern.properties) {
+      const typeAnnotation = find(objectTypeAnnotation.properties, propType => propType.key.name === property.key.name)
+      if (!typeAnnotation) {
+        continue
+      }
+
+      if (t.isIdentifier(property.value) && name === property.value.name) {
+        return typeAnnotation.value
+      } else if (t.isObjectPattern(property.value)) {
+        const result = findTypeAnnotationInObjectPattern(name, property.value, typeAnnotation.value)
+        if (result) {
+          return result
+        }
+      } else if (t.isArrayPattern(property.value)) {
+        const result = findTypeAnnotationInArrayPattern(name, property.value, typeAnnotation.value)
+        if (result) {
+          return result
+        }
+      }
+    }
+  }
+
+  function findTypeAnnotationInArrayPattern(name, arrayPattern, arrayTypeAnnotation) {
+    const isGenericArray = arrayTypeAnnotation && t.isGenericTypeAnnotation(arrayTypeAnnotation) && arrayTypeAnnotation.id.name === 'Array'
+    if (!arrayTypeAnnotation || !(t.isTupleTypeAnnotation(arrayTypeAnnotation) || isGenericArray)) {
+      return
+    }
+
+    for (let i = 0, element, length = arrayPattern.elements.length; i < length; i++) {
+      element = arrayPattern.elements[i]
+      const typeAnnotation = isGenericArray ? arrayTypeAnnotation.typeParameters.params[0] : arrayTypeAnnotation.types[i]
+      if (!typeAnnotation) {
+        continue
+      }
+
+      if (t.isIdentifier(element)) {
+        return typeAnnotation
+      } else if (t.isObjectPattern(element)) {
+        const result = findTypeAnnotationInObjectPattern(name, element, typeAnnotation)
+        if (result) {
+          return result
+        }
+      } else if (t.isArrayPattern(element)) {
+        const result = findTypeAnnotationInArrayPattern(name, element, typeAnnotation)
+        if (result) {
+          return result
+        }
+      }
+    }
+  }
+
   //
   // visitors
   //
@@ -862,15 +920,17 @@ export default function ({ types: t, template }) {
 
         const node = path.node
 
-        if (node.kind !== 'const') {
-          return
-        }
-
         for (var i = 0, len = node.declarations.length ; i < len ; i++ ) {
           const declarator = node.declarations[i]
           const id = declarator.id
 
           if (!id.typeAnnotation) {
+            return
+          }
+
+          id[TYPE_VARIABLE_STORE_FIELD] = id.typeAnnotation
+
+          if (!declarator.init) {
             return
           }
 
@@ -882,6 +942,50 @@ export default function ({ types: t, template }) {
             t.stringLiteral(nodeToString(id))
           )
         }
+      },
+
+      AssignmentExpression(path, state) {
+        if (state.opts[SKIP_ASSERTS_OPTION]) {
+          return
+        }
+
+        const { node, scope } = path
+
+        let typeAnnotation
+        if (t.isIdentifier(node.left)) {
+          const name = node.left.name
+          const binding = scope.getBinding(name)
+          if (!binding || binding.path.type !== 'VariableDeclarator') {
+            return
+          }
+
+          const declaratorId = binding.path.node.id
+          typeAnnotation = declaratorId[TYPE_VARIABLE_STORE_FIELD]
+
+          if (!typeAnnotation || !typeAnnotation.typeAnnotation) {
+            return
+          }
+
+          typeAnnotation = typeAnnotation.typeAnnotation
+
+          if (t.isObjectPattern(declaratorId)) {
+            typeAnnotation = findTypeAnnotationInObjectPattern(name, declaratorId, typeAnnotation)
+          } else if (t.isArrayPattern(declaratorId)) {
+            typeAnnotation = findTypeAnnotationInArrayPattern(name, declaratorId, typeAnnotation)
+          }
+        }
+
+        if (!typeAnnotation || typeAnnotation.type === 'AnyTypeAnnotation') {
+          return
+        }
+
+        hasAsserts = true
+        node.right = getAssertCallExpression(
+          node.right,
+          typeAnnotation,
+          node[TYPE_PARAMETERS_STORE_FIELD],
+          t.stringLiteral(node.left.name || generate(node.left, { concise: true }).code)
+        )
       },
 
       Function(path, state) {

@@ -142,6 +142,20 @@ export default function ({ types: t, template }) {
   const booleanId = t.identifier('Boolean')
   const anyId = t.identifier('Any')
 
+  function getEmptyType() {
+    return t.callExpression(
+      t.memberExpression(tcombId, t.identifier('irreducible')),
+      [
+        t.stringLiteral('Empty'),
+        t.functionExpression(null, [], t.blockStatement([
+          t.returnStatement(
+            t.booleanLiteral(false)
+          )
+        ]))
+      ]
+    )
+  }
+
   function getListCombinator(type, name) {
     return callCombinator(listId, [type], name)
   }
@@ -421,6 +435,9 @@ export default function ({ types: t, template }) {
 
       case 'BooleanLiteralTypeAnnotation' :
         return getBooleanLiteralType(annotation.value, typeName)
+
+      case 'EmptyTypeAnnotation' :
+        return getEmptyType()
 
       default :
         throw new Error(`Unsupported type annotation: ${annotation.type}`)

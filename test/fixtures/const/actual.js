@@ -1,5 +1,9 @@
 const a: string = 's1';
 const aa: ?string = 's1';
+
+const aaa: string = s1;
+const aaaa: ?string = s1;
+
 const b = 's2';
 
 const [c]: Array<number> = [1, 2];

@@ -1,6 +1,10 @@
 import _t from 'tcomb';
-const a = _assert('s1', _t.String, 'a');
-const aa = _assert('s1', _t.maybe(_t.String), 'aa');
+const a = 's1';
+const aa = 's1';
+
+const aaa = _assert(s1, _t.String, 'aaa');
+const aaaa = _assert(s1, _t.maybe(_t.String), 'aaaa');
+
 const b = 's2';
 
 const [c] = _assert([1, 2], _t.list(_t.Number), '[c]');

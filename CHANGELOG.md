@@ -12,6 +12,10 @@
 **Note**: Gaps between patch versions are faulty/broken releases.
 **Note**: A feature tagged as Experimental is in a high state of flux, you're at risk of it changing without notice.
 
+# v0.3.26
+- **Experimental**
+  - Add support for object type spread, fix #169 (@voldern)
+
 # v0.3.25
 
 - **New Feature**

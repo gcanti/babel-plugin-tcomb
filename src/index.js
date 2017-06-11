@@ -55,9 +55,11 @@ export default function ({ types: t, template }) {
   let tcombId = null
   let assertId = null
   let extendId = null
+  let spreadId = null
   let hasTypes = false
   let hasAsserts = false
   let hasExtend = false
+  let hasSpread = false
   let recursiveTypes = []
   let globals
 
@@ -89,6 +91,25 @@ export default function ({ types: t, template }) {
         return false;
       }
       return tcombId.interface.extend(types.filter(type => !isAny(type)), name)
+    }
+  `)
+
+  const spreadTemplate = expression(`
+    function spreadId(items, name) {
+      return tcombId.interface(items.reduce((props, item) => {
+        if (item.props) {
+            return tcombId.mixin(props, item.props, true);
+        }
+
+        const interfaceProps = item.interface.meta.props;
+        if (item.maybe) {
+            Object.keys(interfaceProps).forEach((key) => {
+                interfaceProps[key] = tcombId.maybe(interfaceProps[key]);
+            });
+        }
+
+        return tcombId.mixin(props, interfaceProps, true);
+      }, {}), name);
     }
   `)
 
@@ -216,6 +237,61 @@ export default function ({ types: t, template }) {
     return intersection
   }
 
+  function getSpreadCombinator(annotation, typeParameters, name) {
+    hasSpread = true
+
+    const astItems = []
+    const buildItem = (node, maybe = false) => ({ node, maybe, any: false })
+
+    annotation.properties.forEach(prop => {
+      if (prop.type !== 'ObjectTypeSpreadProperty') {
+        astItems.push(buildItem(prop))
+      } else if (prop.argument.id.name !== '$Exact') {
+        // Every prop before non-exact spread becomes mixed
+        astItems.forEach(item => item.any = true)
+        astItems.push(buildItem(prop.argument, true))
+      } else {
+        astItems.push(buildItem(prop.argument.typeParameters.params[0]))
+      }
+    })
+
+    const params = []
+    let propertyBuffer = []
+
+    const buildProps = props => t.objectExpression([
+      t.objectProperty(t.stringLiteral('props'), t.objectExpression(props))])
+
+    astItems.forEach(item => {
+      if (item.node.type === 'ObjectTypeProperty') {
+        const type = item.any ? getAnyType() : getType(item.node.value, typeParameters)
+
+        propertyBuffer.push(t.objectProperty(item.node.key, type))
+      } else {
+        if (propertyBuffer.length) {
+          params.push(buildProps(propertyBuffer))
+          propertyBuffer = []
+        }
+
+        params.push(t.objectExpression([
+          t.objectProperty(t.stringLiteral('interface'), getType(item.node)),
+          t.objectProperty(t.stringLiteral('maybe'), t.booleanLiteral(item.maybe))
+        ]))
+      }
+    })
+
+    if (propertyBuffer.length) {
+      params.push(buildProps(propertyBuffer))
+    }
+
+    return t.callExpression(
+      spreadId,
+      [
+        t.arrayExpression(params),
+        name
+      ]
+    )
+  }
+
   //
   // Flow types
   //
@@ -335,6 +411,10 @@ export default function ({ types: t, template }) {
     return globals && globals.hasOwnProperty(name)
   }
 
+  function isObjectSpread(node) {
+    return node.properties.some(prop => prop.type === 'ObjectTypeSpreadProperty')
+  }
+
   function shouldReturnAnyType(name, typeParameters) {
      // this plugin doesn't handle generics by design
     return isGlobalType(name) || isTypeParameter(name, typeParameters) || flowMagicTypes.hasOwnProperty(name)
@@ -391,6 +471,10 @@ export default function ({ types: t, template }) {
         return getUnionCombinator(annotation.types.map(annotation => getType(annotation, typeParameters)), typeName)
 
       case 'ObjectTypeAnnotation' :
+        if (isObjectSpread(annotation)) {
+          return getSpreadCombinator(annotation, typeParameters, typeName)
+        }
+
         if (annotation.indexers.length === 1) {
           return getDictCombinator(
             getType(annotation.indexers[0].key, typeParameters),
@@ -754,9 +838,11 @@ export default function ({ types: t, template }) {
           hasAsserts = false
           hasTypes = false
           hasExtend = false
+          hasSpread = false
           tcombId = path.scope.generateUidIdentifier('t')
           assertId = path.scope.generateUidIdentifier('assert')
           extendId = path.scope.generateUidIdentifier('extend')
+          spreadId = path.scope.generateUidIdentifier('spread')
           recursiveTypes = []
           if (!globals && state.opts.globals) {
             globals = state.opts.globals.reduce((acc, x) => assign(acc, x), {})
@@ -787,6 +873,13 @@ export default function ({ types: t, template }) {
           if (isExtendTemplateRequired) {
             path.node.body.push(extendTemplate({
               extendId,
+              tcombId
+            }))
+          }
+
+          if (hasSpread) {
+            path.node.body.push(spreadTemplate({
+              spreadId,
               tcombId
             }))
           }

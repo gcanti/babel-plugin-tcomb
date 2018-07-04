@@ -22,7 +22,8 @@ const flowMagicTypes = {
   '$Diff': true,
   '$Abstract': true,
   '$Subtype': true,
-  '$ObjMap': true
+  '$ObjMap': true,
+  '$Values': true
 }
 
 // plugin magic types

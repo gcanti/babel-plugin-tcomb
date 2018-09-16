@@ -109,7 +109,7 @@ Definition files for `tcomb` and `tcomb-react` are temporarily published [here](
 # Caveats
 
 - `tcomb` must be `require`able
-- type parameters (aka generics) are not handled (`Flow`'s responsability)
+- type parameters (aka generics) are not handled (`Flow`'s responsibility)
 
 # How it works
 

@@ -8,7 +8,7 @@
  *
  */
 
-import generate from 'babel-generator'
+import generate from '@babel/generator'
 
 const PLUGIN_NAME = 'babel-plugin-tcomb'
 const TYPE_PARAMETERS_STORE_FIELD = '__babel_plugin_tcomb_typeParametersStoreField'
@@ -65,16 +65,16 @@ export default function ({ types: t, template }) {
   let globals
 
   const assertTemplate = expression(`
-    function assertId(x, type, name) {
-      if (warnOnFailure) {
-        tcombId.fail = function (message) { console.warn(message); };
+    function ASSERT_ID(x, type, name) {
+      if (WARN_ON_FAILURE) {
+        TCOMB_ID.fail = function (message) { console.warn(message); };
       }
-      if (tcombId.isType(type) && type.meta.kind !== 'struct') {
+      if (TCOMB_ID.isType(type) && type.meta.kind !== 'struct') {
         if (!type.is(x)) {
-          type(x, [name + ': ' + tcombId.getTypeName(type)]);
+          type(x, [name + ': ' + TCOMB_ID.getTypeName(type)]);
         }
       } else if (!(x instanceof type)) {
-        tcombId.fail('Invalid value ' + tcombId.stringify(x) + ' supplied to ' + name + ' (expected a ' + tcombId.getTypeName(type) + ')');
+        TCOMB_ID.fail('Invalid value ' + TCOMB_ID.stringify(x) + ' supplied to ' + name + ' (expected a ' + TCOMB_ID.getTypeName(type) + ')');
       }
       return x;
     }
@@ -83,38 +83,38 @@ export default function ({ types: t, template }) {
   const extendTemplate = expression(`
     function extendId(types, name) {
       const isAny = (type) => {
-        if (type === tcombId.Any) {
+        if (type === TCOMB_ID.Any) {
           return true;
         }
-        if (tcombId.isType(type) && type.meta.kind === 'maybe') {
+        if (TCOMB_ID.isType(type) && type.meta.kind === 'maybe') {
           return isAny(type.meta.type)
         }
         return false;
       }
-      return tcombId.interface.extend(types.filter(type => !isAny(type)), name)
+      return TCOMB_ID.interface.extend(types.filter(type => !isAny(type)), name)
     }
   `)
 
   const spreadTemplate = expression(`
-    function spreadId(items, name) {
-      return tcombId.interface(items.reduce((props, item) => {
+    function SPREAD_ID(items, name) {
+      return TCOMB_ID.interface(items.reduce((props, item) => {
         if (item.props) {
-            return tcombId.mixin(props, item.props, true);
+            return TCOMB_ID.mixin(props, item.props, true);
         }
 
         const interfaceProps = item.interface.meta.props;
         if (item.maybe) {
             Object.keys(interfaceProps).forEach((key) => {
-                interfaceProps[key] = tcombId.maybe(interfaceProps[key]);
+                interfaceProps[key] = TCOMB_ID.maybe(interfaceProps[key]);
             });
         }
 
-        return tcombId.mixin(props, interfaceProps, true);
+        return TCOMB_ID.mixin(props, interfaceProps, true);
       }, {}), name);
     }
   `)
 
-  const argumentsTemplate = expression(`arguments[index] !== undefined ? arguments[index] : defaults`)
+  const argumentsTemplate = expression(`arguments[INDEX] !== undefined ? arguments[INDEX] : DEFAULTS`)
 
   //
   // combinators
@@ -509,13 +509,13 @@ export default function ({ types: t, template }) {
       case 'TypeofTypeAnnotation' :
       case 'AnyTypeAnnotation' :
       case 'MixedTypeAnnotation' :
-      case 'ExistentialTypeParam' :
+      case 'ExistsTypeAnnotation' :
         return getAnyType()
 
       case 'StringLiteralTypeAnnotation' :
         return getEnumsCombinator([annotation.value], typeName)
 
-      case 'NumericLiteralTypeAnnotation' :
+      case 'NumberLiteralTypeAnnotation' :
         return getNumericLiteralType(annotation.value, typeName)
 
       case 'BooleanLiteralTypeAnnotation' :
@@ -552,8 +552,8 @@ export default function ({ types: t, template }) {
   function stripDefaults(node) {
     if (t.isObjectPattern(node)) {
       return t.objectExpression(node.properties.map(p => {
-        if (t.isRestProperty(p)) {
-          return t.spreadProperty(stripDefaults(p.argument))
+        if (t.isRestElement(p)) {
+          return t.spreadElement(stripDefaults(p.argument))
         }
         return t.objectProperty(p.key, stripDefaults(p.value), false, true)
       }))
@@ -570,9 +570,9 @@ export default function ({ types: t, template }) {
         return stripDefaults(param)
       }
       if (typeof defaults !== 'undefined') {
-        return argumentsTemplate({ index: t.identifier(i), defaults })
+        return argumentsTemplate({ INDEX: t.identifier(i.toString()), DEFAULTS: defaults })
       }
-      return t.memberExpression(t.identifier('arguments'), t.identifier(i), true)
+      return t.memberExpression(t.identifier('arguments'), t.identifier(i.toString()), true)
     }
     if (t.isRestElement(param)) {
       return param.argument
@@ -865,23 +865,23 @@ export default function ({ types: t, template }) {
 
           if (isAssertTemplateRequired) {
             path.node.body.push(assertTemplate({
-              warnOnFailure: t.booleanLiteral(!!state.opts[WARN_ON_FAILURE_OPTION]),
-              assertId,
-              tcombId
+              WARN_ON_FAILURE: t.booleanLiteral(!!state.opts[WARN_ON_FAILURE_OPTION]),
+              ASSERT_ID: assertId,
+              TCOMB_ID: tcombId
             }))
           }
 
           if (isExtendTemplateRequired) {
             path.node.body.push(extendTemplate({
               extendId,
-              tcombId
+              TCOMB_ID: tcombId
             }))
           }
 
           if (hasSpread) {
             path.node.body.push(spreadTemplate({
-              spreadId,
-              tcombId
+              SPREAD_ID: spreadId,
+              TCOMB_ID: tcombId
             }))
           }
         }
@@ -1018,8 +1018,7 @@ export default function ({ types: t, template }) {
         try {
           // Firstly let's replace arrow function expressions into
           // block statement return structures.
-          if (t.isArrowFunctionExpression(node) && node.expression) {
-            node.expression = false
+          if (t.isArrowFunctionExpression(node) && node.body.type !== "BlockStatement") {
             node.body = t.blockStatement([t.returnStatement(node.body)])
           }
 

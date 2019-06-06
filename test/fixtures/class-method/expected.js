@@ -1,16 +1,18 @@
 import t from 'tcomb';
+
 class A {
   foo(x) {
-    _assert(x, t.String, 'x');
+    _assert(x, t.String, "x");
 
     const ret = function (x) {
       return x;
     }.call(this, x);
 
-    _assert(ret, t.String, 'return value');
+    _assert(ret, t.String, "return value");
 
     return ret;
   }
+
 }
 
 class B {
@@ -20,9 +22,10 @@ class B {
         console.log(this);
       }.call(this, n);
 
-      _assert(ret, _t.Nil, 'return value');
+      _assert(ret, _t.Nil, "return value");
 
       return ret;
     });
   }
+
 }

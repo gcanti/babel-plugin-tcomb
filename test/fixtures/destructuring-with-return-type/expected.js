@@ -1,5 +1,16 @@
 import t from 'tcomb';
-function foo({ x: { y: foo, z: { bar } }, a: { bob } }) {
+
+function foo({
+  x: {
+    y: foo,
+    z: {
+      bar
+    }
+  },
+  a: {
+    bob
+  }
+}) {
   const ret = function ({
     x: {
       y: foo,
@@ -17,7 +28,7 @@ function foo({ x: { y: foo, z: { bar } }, a: { bob } }) {
     a
   });
 
-  _assert(ret, t.String, 'return value');
+  _assert(ret, t.String, "return value");
 
   return ret;
 }

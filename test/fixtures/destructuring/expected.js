@@ -1,4 +1,6 @@
-function foo({ x }) {
+function foo({
+  x
+}) {
   _assert(arguments[0], _t.interface({
     x: _t.String
   }), "{ x }");
@@ -6,7 +8,9 @@ function foo({ x }) {
   return bar;
 }
 
-function bar({ a } = {}) {
+function bar({
+  a
+} = {}) {
   const ret = function ({
     a
   }) {
@@ -20,7 +24,11 @@ function bar({ a } = {}) {
   return ret;
 }
 
-function baz({ x: { y = "ex" } } = {}) {
+function baz({
+  x: {
+    y = "ex"
+  }
+} = {}) {
   _assert(arguments[0] !== undefined ? arguments[0] : {}, _t.interface({
     x: _t.interface({
       y: _t.maybe(_t.String)

@@ -24,11 +24,15 @@ function bar(x, y) {
   return ret;
 }
 
-function f({ x = "ex" }) {
+function f({
+  x = "ex"
+}) {
   const ret = function ({
     x
   }) {
-    console.log({ x });
+    console.log({
+      x
+    });
   }.call(this, {
     x
   });

@@ -7,7 +7,12 @@ function foo(x) {
   }), "x");
 
   const ret = function (x) {
-    return { baz: foo, a: { bob: bar } };
+    return {
+      baz: foo,
+      a: {
+        bob: bar
+      }
+    };
   }.call(this, x);
 
   _assert(ret, _t.interface({
@@ -26,5 +31,5 @@ function getFullName(person) {
     surname: _t.String
   }), "person");
 
-  return `${ name } ${ surname }`;
+  return `${name} ${surname}`;
 }

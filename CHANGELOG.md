@@ -1,6 +1,7 @@
 # Changelog
 
 > **Tags:**
+>
 > - [New Feature]
 > - [Bug Fix]
 > - [Breaking Change]
@@ -12,12 +13,18 @@
 **Note**: Gaps between patch versions are faulty/broken releases.
 **Note**: A feature tagged as Experimental is in a high state of flux, you're at risk of it changing without notice.
 
+# v0.4.0
+
+- **Breaking Change**
+  - upgrade to babel 7, fix #174 (@minedeljkovic)
+
 # v0.3.27
 
 - **New Feature**
   - add support for `$Values` (@jeantimex)
 
 # v0.3.26
+
 - **Experimental**
   - Add support for object type spread, fix #169 (@voldern)
 
@@ -39,6 +46,7 @@
 # v0.3.22
 
 - **Bug Fix**
+
   - arguments object and arrow functions don't play well together, fix #144 (@gcanti)
 
 - **Bug Fix**
@@ -193,11 +201,10 @@
 ## v0.2.0
 
 - **Breaking Change**
-    - upgrade to babel ^6.0.0 https://github.com/gcanti/babel-plugin-tcomb/pull/12 (thanks @ctrlplusb)
-    - support for default values https://github.com/gcanti/babel-plugin-tcomb/pull/15
+  - upgrade to babel ^6.0.0 https://github.com/gcanti/babel-plugin-tcomb/pull/12 (thanks @ctrlplusb)
+  - support for default values https://github.com/gcanti/babel-plugin-tcomb/pull/15
 
 ## v0.1.4 (babel ^5.0.0)
 
 - **New Feature**
-    - support for default values
-
+  - support for default values

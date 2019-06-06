@@ -2,7 +2,7 @@
 const path   = require('path')
 const fs     = require('fs')
 const assert = require('assert')
-const babel  = require('babel-core')
+const babel  = require('@babel/core')
 const plugin = require('../src/index').default
 
 function trim(str) {
@@ -23,7 +23,9 @@ describe('_assert helper', () => {
 function foo(x: string) {}
 `
     const expected = `import _t from "tcomb";
+
 function _assert() {}
+
 function foo(x: string) {
   _assert2(x, _t.String, "x");
 }
@@ -49,7 +51,7 @@ function _assert2(x, type, name) {
       source, {
         babelrc: false,
         plugins: [
-          'syntax-flow',
+          '@babel/plugin-syntax-flow',
           plugin
         ]
       }
@@ -64,7 +66,7 @@ function _assert2(x, type, name) {
       source, {
         babelrc: false,
         plugins: [
-          'syntax-flow',
+          '@babel/plugin-syntax-flow',
           plugin
         ]
       }
@@ -86,7 +88,7 @@ describe('$Refinement type', () => {
         source, {
           babelrc: false,
           plugins: [
-            'syntax-flow',
+            '@babel/plugin-syntax-flow',
             plugin
           ]
         }
@@ -109,7 +111,7 @@ describe('$Refinement type', () => {
         source, {
           babelrc: false,
           plugins: [
-            'syntax-flow',
+            '@babel/plugin-syntax-flow',
             plugin
           ]
         }
@@ -136,7 +138,7 @@ describe('$Reify type', () => {
         source, {
           babelrc: false,
           plugins: [
-            'syntax-flow',
+            '@babel/plugin-syntax-flow',
             plugin
           ]
         }
@@ -159,7 +161,7 @@ describe('$Reify type', () => {
         source, {
           babelrc: false,
           plugins: [
-            'syntax-flow',
+            '@babel/plugin-syntax-flow',
             plugin
           ]
         }
@@ -185,7 +187,7 @@ describe('globals option', () => {
       source, {
         babelrc: false,
         plugins: [
-          'syntax-flow',
+          '@babel/plugin-syntax-flow',
           [plugin, {
             skipHelpers: true,
             globals: [
@@ -217,13 +219,13 @@ describe('emit asserts for: ', () => {
         path.join(fixtureDir, 'actual.js'), {
           babelrc: false,
           plugins: [
-            'syntax-async-functions',
-            'syntax-flow',
+            '@babel/plugin-syntax-async-generators',
+            '@babel/plugin-syntax-flow',
             [plugin, {
               skipHelpers: true
             }],
-            'transform-flow-strip-types',
-            'transform-object-rest-spread'
+            '@babel/plugin-transform-flow-strip-types',
+            '@babel/plugin-proposal-object-rest-spread'
           ]
         }
       ).code

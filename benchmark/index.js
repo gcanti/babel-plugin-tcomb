@@ -1,5 +1,5 @@
 var Benchmark = require('benchmark')
-var babel  = require('babel-core')
+var babel  = require('@babel/core')
 var plugin = require('../src/index').default
 var path = require('path')
 var fs = require('fs')
@@ -22,11 +22,11 @@ function Test() {
     source, {
       babelrc: false,
       plugins: [
-        'syntax-flow',
+        '@babel/plugin-syntax-flow',
         [plugin, {
           skipAsserts: false
         }],
-        'transform-flow-strip-types'
+        '@babel/plugin-transform-flow-strip-types'
       ]
     }
   ).code

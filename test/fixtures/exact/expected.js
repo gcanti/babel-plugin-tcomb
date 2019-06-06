@@ -21,6 +21,7 @@ function f(x) {
     strict: true
   }), "x");
 }
+
 function g() {
   const ret = function () {}.call(this);
 
@@ -32,6 +33,7 @@ function g() {
 
   return ret;
 }
+
 function h(x) {
   _assert(x, _t.interface({
     x: _t.String
@@ -39,6 +41,7 @@ function h(x) {
     strict: true
   }), "x");
 }
+
 function i() {
   const ret = function () {}.call(this);
 

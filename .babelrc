@@ -1,7 +1,7 @@
 {
-  "presets": ["es2015"],
+  "presets": ["@babel/preset-env"],
   "plugins": [
-    "syntax-flow",
-    "transform-flow-strip-types"
+    "@babel/plugin-syntax-flow",
+    "@babel/plugin-transform-flow-strip-types"
   ]
 }

@@ -1,31 +1,19 @@
 import _t from "tcomb";
 
-const Node = _t.interface({}, "Node");
-
-// recursive
+const Node = _t.interface({}, "Node"); // recursive
 
 
-const Path1 = _t.declare("Path1");
-
-// recursive
+const Path1 = _t.declare("Path1"); // recursive
 
 
-export const Path2 = _t.declare("Path2");
+export const Path2 = _t.declare("Path2"); // recursive
 
-// recursive
-
-const Path3 = _t.declare("Path3");
-
-// recursive
+const Path3 = _t.declare("Path3"); // recursive
 
 
-export const Path4 = _t.declare("Path4");
+export const Path4 = _t.declare("Path4"); // recursive
 
-// recursive
-
-const Path5 = _t.declare("Path5");
-
-// recursive
+const Path5 = _t.declare("Path5"); // recursive
 
 
 export const Path6 = _t.declare("Path6");
